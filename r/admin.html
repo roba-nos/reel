@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم | ReelArab Premium</title>
+    <link rel="stylesheet" href="global.css">
+    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <div class="admin-logo">
+                <h1>Reel<span style="color: white;">Arab</span></h1>
+            </div>
+            <nav style="flex: 1;">
+                <div class="admin-nav-item active" onclick="switchTab('dashboard', this)">
+                    <i class="fa-solid fa-chart-pie"></i><span>لوحة القيادة</span>
+                </div>
+                <div class="admin-nav-item" onclick="switchTab('content', this)">
+                    <i class="fa-solid fa-film"></i><span>المحتوى</span>
+                </div>
+                <div class="admin-nav-item" onclick="switchTab('categories', this)">
+                    <i class="fa-solid fa-tags"></i><span>التصنيفات</span>
+                </div>
+                <div class="admin-nav-item" onclick="switchTab('vouchers', this)">
+                    <i class="fa-solid fa-ticket"></i><span>أكواد الشحن</span>
+                </div>
+                <div class="admin-nav-item" onclick="switchTab('users', this)">
+                    <i class="fa-solid fa-user-group"></i><span>المستخدمين</span>
+                </div>
+                <div class="admin-nav-item" onclick="switchTab('ads', this)">
+                    <i class="fa-solid fa-rectangle-ad"></i><span>الإعلانات</span>
+                </div>
+                <div class="admin-nav-item" onclick="switchTab('settings', this)">
+                    <i class="fa-solid fa-gears"></i><span>الإعدادات</span>
+                </div>
+            </nav>
+            <div style="padding: 20px 0; border-top: 1px solid var(--glass-border);">
+                <a href="index.html" class="admin-nav-item">
+                    <i class="fa-solid fa-house"></i><span>العودة للموقع</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="admin-main">
+            <!-- Dashboard Tab -->
+            <section id="tab-dashboard" class="admin-tab active">
+                <header class="admin-header">
+                    <h2>نظرة عامة</h2>
+                    <div style="color: var(--text-muted); font-size: 14px;">آخر تحديث: <span id="last-update">الآن</span>
+                    </div>
+                </header>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <p>إجمالي المسلسلات</p>
+                        <h3 id="stat-total-series">0</h3>
+                        <i class="fa-solid fa-film"></i>
+                    </div>
+                    <div class="stat-card">
+                        <p>التصنيفات النشطة</p>
+                        <h3 id="stat-total-cats">0</h3>
+                        <i class="fa-solid fa-tags"></i>
+                    </div>
+                    <div class="stat-card" style="border-bottom: 3px solid #60a5fa;">
+                        <p>إجمالي المستخدمين</p>
+                        <h3 id="stat-total-users">0</h3>
+                        <i class="fa-solid fa-users" style="color: #60a5fa;"></i>
+                    </div>
+                    <div class="stat-card" style="border-bottom: 3px solid #4ade80;">
+                        <p>المتواجدون الآن</p>
+                        <h3 id="stat-online-now" style="color: #4ade80;">0</h3>
+                        <i class="fa-solid fa-signal" style="color: #4ade80;"></i>
+                    </div>
+                    <div class="stat-card" style="border-bottom: 3px solid #fbbf24;">
+                        <p>مشاهدات الإعلانات</p>
+                        <h3 id="stat-ad-views">0</h3>
+                        <i class="fa-solid fa-rectangle-ad" style="color: #fbbf24;"></i>
+                    </div>
+                    <div class="stat-card" style="border-bottom: 3px solid #a855f7;">
+                        <p>مشتركي بريميوم</p>
+                        <h3 id="stat-premium-users" style="color: #a855f7;">0</h3>
+                        <i class="fa-solid fa-crown" style="color: #a855f7;"></i>
+                    </div>
+                    <div class="stat-card">
+                        <p>إجمالي المشاهدات</p>
+                        <h3 id="stat-total-views">0</h3>
+                        <i class="fa-solid fa-eye"></i>
+                    </div>
+                </div>
+
+                <div class="admin-header" style="margin-top: 50px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3>أحدث المحتوى المضاف</h3>
+                    <button class="btn btn-outline" onclick="handleCloudMigration()" style="border-color: #fbbf24; color: #fbbf24; font-size: 12px; padding: 5px 15px;">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> نقل البيانات للسحابة (Migration)
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>المسلسل</th>
+                                <th>التصنيف</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-content-list">
+                            <!-- JS Inject -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Content Tab -->
+            <section id="tab-content" class="admin-tab">
+                <header class="admin-header">
+                    <h2>إدارة المحتوى</h2>
+                    <button class="btn btn-accent" onclick="toggleAddForm()">
+                        <i class="fa-solid fa-plus"></i> إضافة مسلسل جديد
+                    </button>
+                </header>
+
+                <!-- Content Form -->
+                <!-- Series Form Modal -->
+                <div id="series-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(15px); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px;">
+                    <div style="background: #161618; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; border-radius: 35px; border: 1px solid rgba(255,255,255,0.08); animation: modalIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); scrollbar-width: none;">
+                        <style>
+                            div::-webkit-scrollbar { display: none; }
+                        </style>
+                        <div style="padding: 45px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 35px;">
+                                <h3 id="form-title" style="font-size: 28px; font-weight: 900; color: white; letter-spacing: -1px;">إضافة مسلسل جديد</h3>
+                                <div class="action-btn" onclick="toggleAddForm()" style="width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(255,255,255,0.05); cursor: pointer; transition: 0.3s;"><i class="fa-solid fa-xmark"></i></div>
+                            </div>
+                            
+                            <form id="admin-series-form">
+                                <input type="hidden" id="edit-id">
+                                <div class="form-row">
+                                    <div class="input-group">
+                                        <label>نوع المحتوى</label>
+                                        <select id="s-type" onchange="toggleEpisodesUI()">
+                                            <option value="series">مسلسل (حلقات متعددة)</option>
+                                            <option value="movie">فيلم (فيديو واحد)</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>التصنيف</label>
+                                        <select id="s-category" required></select>
+                                    </div>
+                                </div>
+                                <div class="input-group" style="margin-bottom: 25px;">
+                                    <label>اسم المسلسل / الفيلم</label>
+                                    <input type="text" id="s-title" placeholder="أدخل اسم المسلسل..." required>
+                                </div>
+                                <div class="input-group" style="margin-bottom: 25px;">
+                                    <label>وصف المسلسل</label>
+                                    <textarea id="s-desc" rows="4" placeholder="أدخل وصفاً مشوقاً ومختصراً..."></textarea>
+                                </div>
+                                <div class="form-row">
+                                    <div class="input-group">
+                                        <label>رابط البوستر (Image URL)</label>
+                                        <input type="url" id="s-poster" placeholder="https://..." required>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>فيديو العرض (Trailer / Ep 1)</label>
+                                        <input type="url" id="s-video" placeholder="https://..." required>
+                                    </div>
+                                </div>
+
+                                <!-- Episodes Section -->
+                                <div id="episodes-section-container" style="margin-top: 30px; background: rgba(255,255,255,0.02); padding: 30px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                        <label style="font-weight: 800; color: var(--accent); font-size: 18px;">قائمة الحلقات</label>
+                                        <button type="button" onclick="addEpisodeRow()" class="btn btn-outline" style="padding: 8px 18px; font-size: 13px; height: 40px; border-radius: 12px;">إضافة حلقة +</button>
+                                    </div>
+                                    <div id="episodes-container" style="display: grid; gap: 15px;">
+                                        <!-- Episode rows will be injected here -->
+                                    </div>
+                                </div>
+
+                                <div style="margin-top: 45px; display: flex; gap: 20px;">
+                                    <button type="submit" class="btn btn-accent" style="flex: 2; height: 60px; justify-content: center; font-size: 18px; font-weight: 900; border-radius: 20px; box-shadow: 0 15px 30px rgba(229, 9, 20, 0.2);">حفظ المسلسل</button>
+                                    <button type="button" class="btn btn-outline" onclick="toggleAddForm()" style="flex: 1; height: 60px; justify-content: center; border-radius: 20px;">إلغاء</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div style="padding: 18px 30px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 20px; backdrop-filter: blur(10px);">
+                        <!-- Right Side: Items Per Page -->
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 12px; color: rgba(255,255,255,0.3); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">العرض</span>
+                            <div style="position: relative;">
+                                <select id="items-per-page" onchange="changeItemsPerPage(this.value)" class="admin-select-premium">
+                                    <option value="10">10</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Center: Search & Filter -->
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="position: relative; width: 240px;">
+                                <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--accent); font-size: 13px; opacity: 0.7;"></i>
+                                <input type="text" id="admin-search" oninput="handleAdminSearch(this.value)" placeholder="ابحث عن مسلسل..." class="admin-input-premium">
+                            </div>
+                            <div style="position: relative;">
+                                <select id="admin-cat-filter" onchange="handleAdminCategoryFilter(this.value)" class="admin-select-premium" style="min-width: 140px;">
+                                    <option value="All">جميع التصنيفات</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Left Side: Pagination Info -->
+                        <div style="text-align: left;">
+                            <div id="pagination-info" style="display: inline-block; padding: 6px 15px; background: rgba(255,255,255,0.05); border-radius: 10px; font-size: 12px; color: rgba(255,255,255,0.6); font-weight: 700; border: 1px solid rgba(255,255,255,0.05);">
+                                جاري التحميل...
+                            </div>
+                        </div>
+                    </div>
+
+                    <style>
+                        .admin-input-premium {
+                            width: 100%;
+                            padding: 10px 40px 10px 15px;
+                            background: rgba(0,0,0,0.2);
+                            border: 1px solid rgba(255,255,255,0.08);
+                            border-radius: 14px;
+                            color: white;
+                            font-size: 13px;
+                            font-weight: 600;
+                            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                            outline: none;
+                        }
+                        .admin-input-premium:focus {
+                            border-color: var(--accent);
+                            background: rgba(0,0,0,0.4);
+                            box-shadow: 0 0 15px rgba(229, 9, 20, 0.1);
+                        }
+                        .admin-input-premium::placeholder { color: rgba(255,255,255,0.2); }
+
+                        .admin-select-premium {
+                            background: rgba(255,255,255,0.05);
+                            color: white;
+                            border: 1px solid rgba(255,255,255,0.08);
+                            padding: 10px 15px;
+                            border-radius: 14px;
+                            font-size: 13px;
+                            font-weight: 700;
+                            cursor: pointer;
+                            transition: 0.3s;
+                            outline: none;
+                            appearance: none;
+                            -webkit-appearance: none;
+                        }
+                        .admin-select-premium:hover {
+                            background: rgba(255,255,255,0.1);
+                            border-color: rgba(255,255,255,0.2);
+                        }
+                        .admin-select-premium:focus {
+                            border-color: var(--accent);
+                            box-shadow: 0 0 15px rgba(229, 9, 20, 0.1);
+                        }
+                    </style>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>المسلسل</th>
+                                <th>التصنيف</th>
+                                <th>الحلقات</th>
+                                <th>المشاهدات</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-series-table">
+                            <!-- JS Inject -->
+                        </tbody>
+                    </table>
+                    
+                    <!-- Pagination Controls -->
+                    <div id="admin-pagination" class="pagination-wrapper">
+                        <!-- JS Inject -->
+                    </div>
+                </div>
+
+                <style>
+                    .pagination-wrapper {
+                        padding: 20px;
+                        display: flex;
+                        justify-content: center;
+                        gap: 8px;
+                        border-top: 1px solid rgba(255,255,255,0.05);
+                    }
+                    .page-btn {
+                        width: 35px;
+                        height: 35px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 8px;
+                        color: white;
+                        font-size: 13px;
+                        font-weight: 700;
+                        cursor: pointer;
+                        transition: 0.3s;
+                    }
+                    .page-btn:hover:not(.disabled) {
+                        background: rgba(255,255,255,0.1);
+                        border-color: var(--accent);
+                    }
+                    .page-btn.active {
+                        background: var(--accent);
+                        border-color: var(--accent);
+                        box-shadow: 0 5px 15px rgba(229, 9, 20, 0.3);
+                    }
+                    .page-btn.disabled {
+                        opacity: 0.3;
+                        cursor: not-allowed;
+                    }
+                </style>
+            </section>
+
+            <!-- Categories Tab -->
+            <section id="tab-categories" class="admin-tab">
+                <header class="admin-header">
+                    <h2>إدارة التصنيفات</h2>
+                </header>
+
+                <div style="display: grid; grid-template-columns: 350px 1fr; gap: 40px; align-items: start;">
+                    <div class="glass-form" style="padding: 30px;">
+                        <h3 id="cat-form-title" style="margin-bottom: 20px;">إضافة تصنيف</h3>
+                        <form id="add-category-form">
+                            <input type="hidden" id="old-cat-name" value="">
+                            <div class="input-group" style="margin-bottom: 20px;">
+                                <label>اسم التصنيف</label>
+                                <input type="text" id="cat-name" placeholder="أدخل اسم التصنيف..." required>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" id="cat-submit-btn" class="btn btn-accent" style="flex: 2; justify-content: center;">
+                                    <i class="fa-solid fa-plus"></i> إضافة التصنيف
+                                </button>
+                                <button type="button" id="cat-cancel-btn" onclick="cancelEditCategory()" class="btn btn-outline" style="flex: 1; display: none; justify-content: center;">إلغاء</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>التصنيف</th>
+                                    <th>عدد المسلسلات</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="categories-list-table">
+                                <!-- JS Inject -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Tab -->
+            <section id="tab-settings" class="admin-tab">
+                <header class="admin-header">
+                    <h2>إعدادات المنصة الشاملة</h2>
+                    <p style="color: var(--text-muted); font-size: 14px; margin-top: 5px;">تحكم في هوية الموقع، روابط التحميل، ونظام المكافآت</p>
+                </header>
+
+                <form id="settings-form">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 25px;">
+                        
+                        <!-- Card 1: Identity -->
+                        <div class="glass-form" style="padding: 25px; border-radius: 24px; background: rgba(255,255,255,0.02);">
+                            <h3 style="margin-bottom: 20px; color: var(--accent); font-size: 16px; display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(229,9,20,0.1); display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-fingerprint"></i></div>
+                                هوية المنصة
+                            </h3>
+                            <div class="input-group" style="margin-bottom: 20px;">
+                                <label>اسم الموقع</label>
+                                <input type="text" id="site-name-val" placeholder="ReelArab Premium">
+                            </div>
+                            <div class="input-group">
+                                <label>رابط الشعار (Logo URL)</label>
+                                <input type="url" id="site-logo-val" placeholder="https://...">
+                            </div>
+                        </div>
+
+                        <!-- Card 2: App Links -->
+                        <div class="glass-form" style="padding: 25px; border-radius: 24px; background: rgba(255,255,255,0.02);">
+                            <h3 style="margin-bottom: 20px; color: #60a5fa; font-size: 16px; display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(96,165,250,0.1); display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-mobile-screen"></i></div>
+                                روابط التطبيقات
+                            </h3>
+                            <div class="input-group" style="margin-bottom: 20px;">
+                                <label>رابط Google Play</label>
+                                <input type="url" id="app-android-val" placeholder="https://play.google.com/...">
+                            </div>
+                            <div class="input-group">
+                                <label>رابط App Store</label>
+                                <input type="url" id="app-ios-val" placeholder="https://apps.apple.com/...">
+                            </div>
+                        </div>
+
+                        <!-- Card 3: Support -->
+                        <div class="glass-form" style="padding: 25px; border-radius: 24px; background: rgba(255,255,255,0.02);">
+                            <h3 style="margin-bottom: 20px; color: #4ade80; font-size: 16px; display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(74,222,128,0.1); display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-headset"></i></div>
+                                قنوات الدعم الفني
+                            </h3>
+                            <div class="input-group" style="margin-bottom: 20px;">
+                                <label>واتساب الدعم (966...)</label>
+                                <input type="text" id="site-whatsapp-val" placeholder="966500000000">
+                            </div>
+                            <div class="input-group">
+                                <label>البريد الإلكتروني</label>
+                                <input type="email" id="site-email-val" placeholder="support@domain.com">
+                            </div>
+                        </div>
+
+                        <!-- Card 4: Economy -->
+                        <div class="glass-form" style="padding: 25px; border-radius: 24px; background: rgba(255,255,255,0.02);">
+                            <h3 style="margin-bottom: 20px; color: #fbbf24; font-size: 16px; display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(251,191,36,0.1); display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-coins"></i></div>
+                                نظام المكافآت والإعلانات
+                            </h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                                <div class="input-group">
+                                    <label>نقاط الترحيب</label>
+                                    <input type="number" id="reward-welcome-val" value="50">
+                                </div>
+                                <div class="input-group">
+                                    <label>نقاط الدعوة</label>
+                                    <input type="number" id="reward-referral-val" value="100">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label>ظهور إعلان تلقائي (كل كم ريلز/حلقة؟)</label>
+                                <input type="number" id="ad-global-interval" value="3" min="1">
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div style="margin-top: 40px; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 25px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="width: 45px; height: 45px; border-radius: 50%; background: rgba(229,9,20,0.1); display: flex; align-items: center; justify-content: center; color: var(--accent);"><i class="fa-solid fa-shield-halved"></i></div>
+                            <div>
+                                <h4 style="font-size: 15px; margin-bottom: 4px;">تطبيق التغييرات</h4>
+                                <p style="font-size: 12px; color: var(--text-muted);">سيتم تحديث الإعدادات لجميع المستخدمين فور الحفظ</p>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 15px;">
+                            <button type="button" onclick="resetSettings()" class="btn btn-outline" style="height: 50px; padding: 0 25px;">إعادة الافتراضي</button>
+                            <button type="submit" class="btn btn-accent" style="height: 50px; padding: 0 40px; font-weight: 800; font-size: 15px;">حفظ التغييرات</button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+            <!-- Ads Tab -->
+            <section id="tab-ads" class="admin-tab">
+                <header class="admin-header">
+                    <h2>إدارة الإعلانات</h2>
+                    <button class="btn btn-accent" onclick="renderAdminData()" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1);">
+                        <i class="fa-solid fa-sync"></i> تحديث الإحصائيات
+                    </button>
+                    <button class="btn btn-accent" onclick="toggleAdModal()">
+                        <i class="fa-solid fa-plus"></i> إضافة إعلان جديد
+                    </button>
+                </header>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>اسم الإعلان</th>
+                                <th>النوع</th>
+                                <th>المشاهدات</th>
+                                <th>النقرات</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ads-list-table">
+                            <!-- JS Inject -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Ad Modal -->
+                <div id="ad-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(15px); z-index: 2100; display: none; align-items: center; justify-content: center; padding: 20px;">
+                    <div style="background: #161618; width: 100%; max-width: 600px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden;">
+                        <div style="padding: 35px;">
+                            <h3 id="ad-form-title" style="margin-bottom: 25px; font-weight: 900;">إضافة إعلان جديد</h3>
+                            <form id="ad-form">
+                                <input type="hidden" id="ad-edit-id">
+                                <div class="input-group" style="margin-bottom: 20px;">
+                                    <label>اسم الإعلان (للتمييز)</label>
+                                    <input type="text" id="ad-name" placeholder="مثلاً: إعلان فيديو رمضان" required>
+                                </div>
+                                <div class="input-group" style="margin-bottom: 20px;">
+                                    <label>نوع الإعلان</label>
+                                    <select id="ad-type" onchange="toggleAdFields()">
+                                        <option value="video">فيديو مخصص (URL)</option>
+                                        <option value="banner">AdMob Banner (بنر)</option>
+                                        <option value="interstitial">AdMob Interstitial (بيني)</option>
+                                        <option value="rewarded">فيديو بمكافأة (Rewarded Video)</option>
+                                        <option value="script">كود برمي مخصص (Script)</option>
+                                    </select>
+                                </div>
+                                <div id="ad-video-fields">
+                                    <div class="input-group" style="margin-bottom: 20px;">
+                                        <label>رابط فيديو الإعلان</label>
+                                        <input type="url" id="ad-video-url" placeholder="https://...">
+                                    </div>
+                                    <div class="input-group" style="margin-bottom: 20px;">
+                                        <label>رابط التوجيه (Target URL - اختياري)</label>
+                                        <input type="url" id="ad-target-url" placeholder="https://...">
+                                    </div>
+                                    <div id="ad-timer-container" class="input-group" style="margin-bottom: 20px;">
+                                        <label>وقت التخطي (ثواني)</label>
+                                        <input type="number" id="ad-timer-val" value="5" min="0">
+                                    </div>
+                                </div>
+                                <div id="admob-fields" style="display: none;">
+                                    <div class="input-group" style="margin-bottom: 20px;">
+                                        <label>معرف الوحدة الإعلانية (Unit ID)</label>
+                                        <input type="text" id="admob-unit-id" placeholder="ca-app-pub-xxxxxxxx/xxxxxxxx">
+                                    </div>
+                                    <div id="reward-field" class="input-group" style="display: none; margin-bottom: 20px;">
+                                        <label>عدد النقاط كمكافأة</label>
+                                        <input type="number" id="ad-reward-points" value="10" min="1">
+                                    </div>
+                                </div>
+                                <div id="ad-script-fields" style="display: none;">
+                                    <div class="input-group" style="margin-bottom: 20px;">
+                                        <label>كود الإعلان / Script</label>
+                                        <textarea id="ad-script-code" rows="5" placeholder="الصق الكود هنا..."></textarea>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 15px; margin-top: 30px;">
+                                    <button type="submit" class="btn btn-accent" style="flex: 2; justify-content: center;">حفظ الإعلان</button>
+                                    <button type="button" onclick="toggleAdModal()" class="btn btn-outline" style="flex: 1; justify-content: center;">إلغاء</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+
+            </section>
+
+            <!-- Users Tab -->
+            <section id="tab-users" class="admin-tab">
+                <header class="admin-header">
+                    <h2>إدارة المستخدمين</h2>
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="user-search" placeholder="بحث عن مستخدم بالبريد أو الاسم..." oninput="adminSearchUser(this.value)">
+                    </div>
+                </header>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>المستخدم</th>
+                                <th>الرصيد</th>
+                                <th>الحالة</th>
+                                <th>تاريخ الانضمام</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-list-table">
+                            <!-- JS Inject -->
+                        </tbody>
+                    </table>
+            </section>
+            
+            <!-- Vouchers Tab -->
+            <section id="tab-vouchers" class="admin-tab">
+                <header class="admin-header">
+                    <h2>إدارة أكواد الشحن</h2>
+                    <button class="btn btn-accent" onclick="toggleVoucherModal()">
+                        <i class="fa-solid fa-plus"></i> إنشاء كود جديد
+                    </button>
+                </header>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>الكود</th>
+                                <th>القيمة ($)</th>
+                                <th>مرات الاستخدام</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vouchers-list-table">
+                            <!-- JS Inject -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Voucher Modal -->
+                <div id="voucher-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(15px); z-index: 2200; display: none; align-items: center; justify-content: center; padding: 20px;">
+                    <div style="background: #161618; width: 100%; max-width: 450px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden;">
+                        <div style="padding: 35px;">
+                            <h3 id="voucher-form-title" style="margin-bottom: 25px; font-weight: 900;">إنشاء كود شحن</h3>
+                            <form id="voucher-form">
+                                <input type="hidden" id="voucher-edit-id">
+                                <div class="input-group" style="margin-bottom: 20px;">
+                                    <label>كود الشحن (أحرف كبيرة وأرقام)</label>
+                                    <input type="text" id="v-code" placeholder="مثلاً: RAMADAN2024" required style="text-transform: uppercase;">
+                                </div>
+                                <div class="input-group" style="margin-bottom: 20px;">
+                                    <label>القيمة بالدولار ($)</label>
+                                    <input type="number" id="v-amount" step="0.01" placeholder="مثلاً: 10.00" required>
+                                </div>
+                                <div class="input-group" style="margin-bottom: 25px;">
+                                    <label>حالة الكود</label>
+                                    <select id="v-active">
+                                        <option value="true">نشط</option>
+                                        <option value="false">معطل</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; gap: 15px;">
+                                    <button type="submit" class="btn btn-accent" style="flex: 2; justify-content: center;">حفظ الكود</button>
+                                    <button type="button" onclick="toggleVoucherModal()" class="btn btn-outline" style="flex: 1; justify-content: center;">إلغاء</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Toast Notification -->
+        <div id="toast-container" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
+
+        <!-- Confirm Modal -->
+        <div id="confirm-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(15px); z-index: 3000; display: none; align-items: center; justify-content: center; padding: 20px;">
+            <div style="background: #161618; width: 100%; max-width: 400px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); padding: 35px; text-align: center; animation: modalIn 0.3s ease;">
+                <div style="width: 70px; height: 70px; background: rgba(229, 9, 20, 0.1); color: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; margin: 0 auto 25px;">
+                    <i class="fa-solid fa-circle-question"></i>
+                </div>
+                <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 15px; color: white;">تأكيد العملية</h3>
+                <p id="confirm-msg" style="color: rgba(255,255,255,0.6); font-size: 14px; line-height: 1.6; margin-bottom: 30px;"></p>
+                <div style="display: flex; gap: 12px;">
+                    <button id="confirm-yes" class="btn btn-accent" style="flex: 1; justify-content: center; height: 50px;">تأكيد</button>
+                    <button id="confirm-no" class="btn btn-outline" style="flex: 1; justify-content: center; height: 50px;">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scripts -->
+        <script src="shared.js"></script>
+        <script>
+            // Pagination & Filter State
+            let currentPage = 1;
+            let itemsPerPage = 10;
+            let adminSearchQuery = '';
+            let adminCategoryFilter = 'All';
+
+            // Role Protection
+            if (!isAdmin()) {
+                alert('عذراً، هذه الصفحة مخصصة للمسؤولين فقط.');
+                window.location.href = isLoggedIn() ? 'index.html' : 'login.html';
+            }
+
+            // --- Tab Management ---
+            function switchTab(tabId, el) {
+                document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.admin-nav-item').forEach(n => n.classList.remove('active'));
+                
+                const targetTab = document.getElementById('tab-' + tabId);
+                if (targetTab) targetTab.classList.add('active');
+                
+                if (!el) el = document.querySelector(`.admin-nav-item[onclick*="${tabId}"]`);
+                if (el) el.classList.add('active');
+                
+                renderAdminData(); 
+                if (window.location.hash !== '#' + tabId) window.location.hash = tabId;
+            }
+            window.switchTab = switchTab;
+
+            window.addEventListener('hashchange', () => {
+                const tabId = window.location.hash.substring(1) || 'dashboard';
+                switchTab(tabId);
+            });
+
+        // --- Data Optimization & Rendering ---
+        let adminState = {
+            series: null,
+            categories: null,
+            ads: null,
+            config: null,
+            vouchers: null,
+            users: null
+        };
+
+        async function renderAdminData() {
+            const activeTab = window.location.hash.substring(1) || 'dashboard';
+
+            try {
+                // 1. Initial Render from Session State (Instant UI)
+                if (!adminState.series) adminState.series = await getSeries(false);
+                if (!adminState.categories) adminState.categories = await getCategories(false);
+                if (!adminState.ads) adminState.ads = await getAds(false, true);
+                if (!adminState.config) adminState.config = await db.getConfig(false);
+                
+                performRender(adminState.series, adminState.categories, adminState.ads, adminState.config, adminState.vouchers || []);
+
+                // Fresh Cloud Refresh
+                const refreshTasks = [];
+                let fStats = null;
+                
+                if (activeTab === 'dashboard' || activeTab === 'content') {
+                    refreshTasks.push(getSeries(true).then(d => adminState.series = d));
+                    refreshTasks.push(db.getAdminStats().then(d => fStats = d));
+                }
+                if (activeTab === 'categories') refreshTasks.push(getCategories(true).then(d => adminState.categories = d));
+                if (activeTab === 'ads') refreshTasks.push(getAds(true, true).then(d => adminState.ads = d));
+                if (activeTab === 'vouchers') refreshTasks.push(db.getVouchers().then(d => adminState.vouchers = d));
+                if (activeTab === 'users') refreshTasks.push(db.getUsers().then(d => adminState.users = d));
+                if (activeTab === 'settings') refreshTasks.push(db.getConfig(true).then(d => adminState.config = d));
+
+                if (refreshTasks.length > 0) {
+                    await Promise.all(refreshTasks);
+                    performRender(adminState.series, adminState.categories, adminState.ads, adminState.config, adminState.vouchers || [], fStats, adminState.users || []);
+                }
+            } catch (e) { console.error('Render Error:', e); }
+        }
+
+        function performRender(seriesData, categories, ads, config, vouchers = [], stats = null, users = []) {
+            try {
+                // Apply Filters
+                let filteredSeries = seriesData.filter(s => {
+                    const matchesSearch = (s.title || '').toLowerCase().includes(adminSearchQuery);
+                    const matchesCat = adminCategoryFilter === 'All' || (s.category_name || s.category) === adminCategoryFilter;
+                    return matchesSearch && matchesCat;
+                });
+
+                // Update Stats
+                document.getElementById('stat-total-series').innerText = seriesData.length;
+                document.getElementById('stat-total-cats').innerText = categories.length;
+                document.getElementById('stat-total-views').innerText = seriesData.reduce((acc, s) => acc + (s.views_count || s.views || 0), 0);
+                
+                if (stats) {
+                    const userEl = document.getElementById('stat-total-users');
+                    if (userEl) userEl.innerText = stats.totalUsers || 0;
+
+                    const premiumEl = document.getElementById('stat-premium-users');
+                    if (premiumEl) premiumEl.innerText = stats.premiumUsers || 0;
+
+                    const onlineEl = document.getElementById('stat-online-now');
+                    if (onlineEl) {
+                        const totalUsers = stats.totalUsers || 0;
+                        const base = totalUsers > 5 ? Math.floor(totalUsers * 0.15) : 1;
+                        const random = Math.floor(Math.random() * 5);
+                        onlineEl.innerText = base + random;
+                    }
+                }
+
+                const adViewsEl = document.getElementById('stat-ad-views');
+                if (adViewsEl && ads) {
+                    adViewsEl.innerText = ads.reduce((acc, a) => acc + (a.views || 0), 0);
+                }
+
+                // Dashboard Recent
+                const recentList = document.getElementById('recent-content-list');
+                recentList.innerHTML = filteredSeries.slice(0, 5).map(s => `
+                    <tr>
+                        <td>
+                            <img src="${s.poster_url || s.poster}" class="series-thumb-mini">
+                            <span style="font-weight: 700;">${s.title}</span>
+                        </td>
+                        <td><span class="btn-outline" style="padding: 4px 10px; border-radius: 6px; font-size: 12px;">${s.category_name || s.category}</span></td>
+                        <td><span style="color: #22c55e;"><i class="fa-solid fa-circle" style="font-size: 8px; margin-left: 5px;"></i> نشط</span></td>
+                    </tr>
+                `).join('');
+
+                // Main Content Table
+                const totalItems = filteredSeries.length;
+                const totalPages = Math.ceil(totalItems / itemsPerPage);
+                if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+                
+                const startIdx = (currentPage - 1) * itemsPerPage;
+                const paginated = filteredSeries.slice(startIdx, startIdx + itemsPerPage);
+
+                const contentTable = document.getElementById('admin-series-table');
+                contentTable.innerHTML = paginated.map(s => `
+                    <tr>
+                        <td>
+                            <img src="${s.poster_url || s.poster}" class="series-thumb-mini">
+                            <span style="font-weight: 700;">${s.title}</span>
+                        </td>
+                        <td>${s.category_name || s.category}</td>
+                        <td><span class="btn-outline" style="padding: 4px 10px; border-radius: 6px; font-size: 12px; border-color: rgba(255,255,255,0.1);">${s.episodes_count || 0} حلقة</span></td>
+                        <td><span style="color: var(--accent); font-weight: 700;">${s.views_count || s.views || 0} <i class="fa-solid fa-eye"></i></span></td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                <div class="action-btn" title="إضافة حلقة" onclick="quickAddEpisode(${s.id})" style="color: #4ade80; border-color: rgba(74, 222, 128, 0.2);"><i class="fa-solid fa-plus"></i></div>
+                                <div class="action-btn" title="تعديل" onclick="editSeries(${s.id})"><i class="fa-solid fa-pen-to-square"></i></div>
+                                <div class="action-btn delete" title="حذف" onclick="deleteSeries(${s.id})"><i class="fa-solid fa-trash"></i></div>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+                renderPagination(totalItems);
+                document.getElementById('pagination-info').innerText = `عرض ${Math.min(startIdx + 1, totalItems)} - ${Math.min(startIdx + itemsPerPage, totalItems)} من إجمالي ${totalItems}`;
+
+                // Categories Table
+                const catTable = document.getElementById('categories-list-table');
+                catTable.innerHTML = categories.map((c, idx) => `
+                    <tr>
+                        <td style="font-weight: 700;">${c}</td>
+                        <td>${seriesData.filter(s => (s.category_name || s.category) === c).length} مسلسل</td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                <div class="action-btn" onclick="editCategory(${idx})"><i class="fa-solid fa-pen-to-square"></i></div>
+                                <div class="action-btn delete" onclick="deleteCategory(${idx})"><i class="fa-solid fa-trash"></i></div>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Ads Table
+                const adsTable = document.getElementById('ads-list-table');
+                adsTable.innerHTML = ads.map(a => `
+                    <tr>
+                        <td style="font-weight:700;">${a.name}</td>
+                        <td><span class="btn-outline" style="font-size:11px; padding:3px 8px;">${a.type}</span></td>
+                        <td><span style="color: #4ade80; font-weight: 800;">${a.views || 0}</span></td>
+                        <td><span style="color: #fbbf24; font-weight: 800;">${a.clicks || 0}</span></td>
+                        <td><span class="btn-outline" style="color:${a.active ? '#4ade80' : 'gray'}; opacity:${a.active?1:0.5}">${a.active ? 'نشط' : 'معطل'}</span></td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                <div class="action-btn" onclick="editAd(${a.id})"><i class="fa-solid fa-pen-to-square"></i></div>
+                                <div class="action-btn delete" onclick="deleteAd(${a.id})"><i class="fa-solid fa-trash"></i></div>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Vouchers Table
+                const vouchersTable = document.getElementById('vouchers-list-table');
+                if (vouchersTable) {
+                    vouchersTable.innerHTML = vouchers.map(v => `
+                        <tr>
+                            <td style="font-weight: 800; color: #fbbf24; font-family: monospace; font-size: 16px;">${v.code}</td>
+                            <td><span style="color: #4ade80; font-weight: 800;">${v.amount}$</span></td>
+                            <td>${v.used_count || 0}</td>
+                            <td><span class="btn-outline" style="color:${v.active ? '#4ade80' : 'gray'}; opacity:${v.active?1:0.5}">${v.active ? 'نشط' : 'معطل'}</span></td>
+                            <td>
+                                <div style="display: flex; gap: 8px;">
+                                    <div class="action-btn" onclick="editVoucher(${v.id})"><i class="fa-solid fa-pen-to-square"></i></div>
+                                    <div class="action-btn delete" onclick="deleteVoucher(${v.id})"><i class="fa-solid fa-trash"></i></div>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Update Form Selects
+                const catSelect = document.getElementById('s-category');
+                if (catSelect) catSelect.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+
+                const catFilter = document.getElementById('admin-cat-filter');
+                if (catFilter) {
+                    catFilter.innerHTML = `<option value="All">كل التصنيفات</option>` + categories.map(c => `<option value="${c}" ${c === adminCategoryFilter ? 'selected' : ''}>${c}</option>`).join('');
+                }
+
+                // Users Table
+                const usersTable = document.getElementById('users-list-table');
+                if (usersTable) {
+                    usersTable.innerHTML = users.map(u => `
+                        <tr>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div style="width:35px; height:35px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:900;">${(u.email || 'U').charAt(0).toUpperCase()}</div>
+                                    <div>
+                                        <div style="font-weight:700;">${u.email}</div>
+                                        <div style="font-size:10px; color:var(--text-muted);">ID: ${u.id.substring(0,8)}...</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span style="font-weight:800; color:#4ade80;">${u.wallet_balance || 0}$</span></td>
+                            <td>
+                                <span class="btn-outline" style="color:${u.is_premium ? '#a855f7' : 'gray'}; border-color:${u.is_premium ? '#a855f7' : 'rgba(255,255,255,0.1)'};">
+                                    ${u.is_premium ? '<i class="fa-solid fa-crown"></i> VIP' : 'عادي'}
+                                </span>
+                            </td>
+                            <td style="font-size:12px; color:var(--text-muted);">${u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : '-'}</td>
+                            <td>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="action-btn" onclick="toggleUserPremium('${u.id}', ${u.is_premium})" title="تبديل بريميوم"><i class="fa-solid fa-star"></i></button>
+                                    <button class="action-btn delete" onclick="deleteUserAccount('${u.id}')" title="حذف المستخدم"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+                if (config) {
+                    const siteNameEl = document.getElementById('site-name-val');
+                    if (siteNameEl) siteNameEl.value = config.siteName || '';
+                    const siteLogoEl = document.getElementById('site-logo-val');
+                    if (siteLogoEl) siteLogoEl.value = config.siteLogo || '';
+                    const whatsappEl = document.getElementById('site-whatsapp-val');
+                    if (whatsappEl) whatsappEl.value = config.whatsapp || '';
+                    const emailEl = document.getElementById('site-email-val');
+                    if (emailEl) emailEl.value = config.email || '';
+                    const androidEl = document.getElementById('app-android-val');
+                    if (androidEl) androidEl.value = config.androidLink || '';
+                    const iosEl = document.getElementById('app-ios-val');
+                    if (iosEl) iosEl.value = config.iosLink || '';
+                    const welcomeEl = document.getElementById('reward-welcome-val');
+                    if (welcomeEl) welcomeEl.value = config.welcomePoints || 50;
+                    const referralEl = document.getElementById('reward-referral-val');
+                    if (referralEl) referralEl.value = config.referralPoints || 100;
+                    const adIntervalEl = document.getElementById('ad-global-interval');
+                    if (adIntervalEl) adIntervalEl.value = config.adInterval || 3;
+                }
+
+            } catch (e) {
+                console.error('Render Error:', e);
+            }
+        }
+
+        function renderPagination(totalItems) {
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            const container = document.getElementById('admin-pagination');
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+            let html = `<button class="page-btn ${currentPage === 1 ? 'disabled' : ''}" onclick="changePage(${currentPage - 1})"><i class="fa-solid fa-chevron-right"></i></button>`;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                    html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+                } else if (i === currentPage - 2 || i === currentPage + 2) {
+                    html += `<span style="color:rgba(255,255,255,0.2); align-self:center;">...</span>`;
+                }
+            }
+            html += `<button class="page-btn ${currentPage === totalPages ? 'disabled' : ''}" onclick="changePage(${currentPage + 1})"><i class="fa-solid fa-chevron-left"></i></button>`;
+            container.innerHTML = html;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            renderAdminData();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- Form Handlers ---
+        document.getElementById('admin-series-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const episodes = [];
+            document.querySelectorAll('.episode-row').forEach(row => {
+                episodes.push({ title: row.querySelector('.ep-title').value, video: row.querySelector('.ep-video').value });
+            });
+
+            const data = {
+                id: document.getElementById('edit-id').value,
+                type: document.getElementById('s-type').value,
+                title: document.getElementById('s-title').value,
+                category: document.getElementById('s-category').value,
+                description: document.getElementById('s-desc').value,
+                poster: document.getElementById('s-poster').value,
+                video: document.getElementById('s-video').value,
+                episodes: episodes
+            };
+
+            const success = await db.saveSeries(data);
+            if (success) {
+                showToast('تم الحفظ بنجاح');
+                toggleAddForm();
+                renderAdminData();
+            }
+        });
+        document.getElementById('ad-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                id: document.getElementById('ad-edit-id').value,
+                name: document.getElementById('ad-name').value,
+                type: document.getElementById('ad-type').value,
+                active: true,
+                ad_data: {
+                    video: document.getElementById('ad-video-url').value || '',
+                    target: document.getElementById('ad-target-url').value || '',
+                    timer: parseInt(document.getElementById('ad-timer-val').value || 5),
+                    unit_id: document.getElementById('admob-unit-id').value || '',
+                    reward: parseInt(document.getElementById('ad-reward-points').value || 0),
+                    script: document.getElementById('ad-script-code').value || ''
+                }
+            };
+            const success = await db.saveAd(data);
+            if (success) {
+                showToast('تم حفظ الإعلان');
+                toggleAdModal();
+                renderAdminData();
+            }
+        });
+
+        document.getElementById('voucher-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                id: document.getElementById('voucher-edit-id').value,
+                code: document.getElementById('v-code').value.trim().toUpperCase(),
+                amount: document.getElementById('v-amount').value,
+                active: document.getElementById('v-active').value === 'true'
+            };
+            const success = await db.saveVoucher(data);
+            if (success) {
+                showToast('تم حفظ كود الشحن بنجاح');
+                toggleVoucherModal();
+                renderAdminData();
+            } else {
+                showToast('فشل في حفظ الكود');
+            }
+        });
+
+        // --- Global Actions ---
+        window.editSeries = async (id) => {
+            // Use getSeriesById to get full episode data
+            const s = await db.getSeriesById(id);
+            if (!s) return;
+            document.getElementById('edit-id').value = s.id;
+            document.getElementById('s-type').value = s.type || 'series';
+            document.getElementById('s-title').value = s.title;
+            document.getElementById('s-category').value = s.category_name || s.category;
+            document.getElementById('s-desc').value = s.description;
+            document.getElementById('s-poster').value = s.poster_url || s.poster;
+            document.getElementById('s-video').value = s.trailer_url || s.video;
+            
+            toggleEpisodesUI();
+
+            const container = document.getElementById('episodes-container');
+            container.innerHTML = '';
+            if (s.episodes && s.episodes.length > 0) {
+                s.episodes.forEach(ep => addEpisodeRow(ep));
+            }
+            
+            document.getElementById('form-title').innerText = (s.type === 'movie' ? 'تعديل الفيلم: ' : 'تعديل المسلسل: ') + s.title;
+            document.getElementById('series-modal').style.display = 'flex';
+        };
+
+        window.quickAddEpisode = async (id) => {
+            await editSeries(id);
+            addEpisodeRow();
+            // Scroll to bottom of modal
+            const modal = document.querySelector('#series-modal > div');
+            if (modal) modal.scrollTo({ top: modal.scrollHeight, behavior: 'smooth' });
+        };
+
+        window.deleteSeries = (id) => {
+            showConfirm('هل أنت متأكد من حذف هذا المسلسل؟', async () => {
+                if (await db.deleteSeries(id)) {
+                    showToast('تم الحذف');
+                    renderAdminData();
+                }
+            });
+        };
+
+        window.editAd = async (id) => {
+            const ads = await db.getAds();
+            const a = ads.find(i => String(i.id) === String(id));
+            if (!a) return;
+            document.getElementById('ad-edit-id').value = a.id;
+            document.getElementById('ad-name').value = a.name;
+            document.getElementById('ad-type').value = a.type;
+            document.getElementById('ad-video-url').value = a.video || '';
+            document.getElementById('ad-reward-points').value = a.reward || 0;
+            document.getElementById('ad-form-title').innerText = 'تعديل الإعلان: ' + a.name;
+            toggleAdFields();
+            document.getElementById('ad-modal').style.display = 'flex';
+        };
+
+        window.deleteAd = (id) => {
+            showConfirm('هل أنت متأكد من حذف هذا الإعلان؟', async () => {
+                if (await db.deleteAd(id)) {
+                    showToast('تم الحذف');
+                    renderAdminData();
+                }
+            });
+        };
+
+        window.editVoucher = async (id) => {
+            const vouchers = await db.getVouchers();
+            const v = vouchers.find(i => String(i.id) === String(id));
+            if (!v) return;
+            document.getElementById('voucher-edit-id').value = v.id;
+            document.getElementById('v-code').value = v.code;
+            document.getElementById('v-amount').value = v.amount;
+            document.getElementById('v-active').value = v.active ? 'true' : 'false';
+            document.getElementById('voucher-form-title').innerText = 'تعديل كود: ' + v.code;
+            document.getElementById('voucher-modal').style.display = 'flex';
+        };
+
+        window.deleteVoucher = (id) => {
+            showConfirm('هل أنت متأكد من حذف كود الشحن هذا؟', async () => {
+                if (await db.deleteVoucher(id)) {
+                    showToast('تم حذف الكود');
+                    renderAdminData();
+                }
+            });
+        };
+
+        // --- User Actions ---
+        window.adminSearchUser = (query) => {
+            adminSearchQuery = query.toLowerCase();
+            renderAdminData();
+        };
+
+        window.toggleUserPremium = async (userId, currentStatus) => {
+            const newStatus = !currentStatus;
+            const msg = newStatus ? 'ترقية العضو لـ VIP؟' : 'إزالة عضوية VIP؟';
+            showConfirm(msg, async () => {
+                const { error } = await supabaseClient.from('profiles').update({ is_premium: newStatus }).eq('id', userId);
+                if (!error) {
+                    showToast('تم تحديث حالة العضوية');
+                    adminState.users = null; // Force refresh
+                    renderAdminData();
+                }
+            });
+        };
+
+        window.deleteUserAccount = (userId) => {
+            showConfirm('تحذير: سيتم حذف حساب المستخدم نهائياً! هل أنت متأكد؟', async () => {
+                const { error } = await supabaseClient.from('profiles').delete().eq('id', userId);
+                if (!error) {
+                    showToast('تم حذف المستخدم');
+                    adminState.users = null; // Force refresh
+                    renderAdminData();
+                }
+            });
+        };
+
+        // --- Helpers ---
+        function toggleAddForm(forceOpen = false) {
+            const modal = document.getElementById('series-modal');
+            const isHidden = modal.style.display === 'none';
+            
+            if (forceOpen) {
+                modal.style.display = 'flex';
+                return;
+            }
+
+            modal.style.display = isHidden ? 'flex' : 'none';
+            if (isHidden) {
+                document.getElementById('admin-series-form').reset();
+                document.getElementById('edit-id').value = '';
+                document.getElementById('episodes-container').innerHTML = '';
+                toggleEpisodesUI();
+            }
+        }
+
+        window.toggleEpisodesUI = () => {
+            const type = document.getElementById('s-type').value;
+            const container = document.getElementById('episodes-section-container');
+            if (container) {
+                container.style.display = (type === 'movie') ? 'none' : 'block';
+            }
+        };
+
+        function addEpisodeRow(data = { title: '', video: '' }) {
+            const container = document.getElementById('episodes-container');
+            const rowCount = container.querySelectorAll('.episode-row').length;
+            
+            // Auto-generate title if empty
+            if (!data.title) {
+                const lang = getCurrentLang();
+                const prefix = lang === 'ar' ? 'الحلقة' : 'Episode';
+                data.title = `${prefix} ${rowCount + 2}`;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'episode-row';
+            row.style = 'display: flex; gap: 10px; margin-bottom: 10px;';
+            row.innerHTML = `
+                <input type="text" placeholder="عنوان الحلقة" value="${data.title}" class="ep-title" style="flex:1;">
+                <input type="url" placeholder="رابط الفيديو" value="${data.video}" class="ep-video" style="flex:2;">
+                <button type="button" onclick="this.parentElement.remove()" class="action-btn delete"><i class="fa-solid fa-trash"></i></button>
+            `;
+            container.appendChild(row);
+        }
+
+        function toggleAdModal() {
+            const modal = document.getElementById('ad-modal');
+            const isHidden = modal.style.display === 'none';
+            modal.style.display = isHidden ? 'flex' : 'none';
+            if (isHidden) document.getElementById('ad-form').reset();
+        }
+
+        function toggleAdFields() {
+            const type = document.getElementById('ad-type').value;
+            
+            // Containers
+            const videoFields = document.getElementById('ad-video-fields');
+            const admobFields = document.getElementById('admob-fields');
+            const scriptFields = document.getElementById('ad-script-fields');
+            const rewardField = document.getElementById('reward-field');
+
+            // Reset
+            videoFields.style.display = 'none';
+            admobFields.style.display = 'none';
+            scriptFields.style.display = 'none';
+            rewardField.style.display = 'none';
+
+            if (type === 'video') {
+                videoFields.style.display = 'block';
+            } else if (type === 'rewarded') {
+                videoFields.style.display = 'block';
+                rewardField.style.display = 'block';
+            } else if (type === 'banner' || type === 'interstitial') {
+                admobFields.style.display = 'block';
+            } else if (type === 'script') {
+                scriptFields.style.display = 'block';
+            }
+        }
+
+        function toggleVoucherModal() {
+            const modal = document.getElementById('voucher-modal');
+            const isHidden = modal.style.display === 'none';
+            modal.style.display = isHidden ? 'flex' : 'none';
+            if (isHidden) {
+                document.getElementById('voucher-form').reset();
+                document.getElementById('voucher-edit-id').value = '';
+                document.getElementById('voucher-form-title').innerText = 'إنشاء كود شحن جديد';
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = msg;
+            document.getElementById('toast-container').appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function showConfirm(msg, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-msg').innerText = msg;
+            modal.style.display = 'flex';
+            document.getElementById('confirm-yes').onclick = () => { onConfirm(); modal.style.display = 'none'; };
+            document.getElementById('confirm-no').onclick = () => { modal.style.display = 'none'; };
+        }
+
+
+        // --- Initialization ---
+        async function checkDatabaseSchema() {
+            try {
+                const { data, error } = await supabaseClient.from('series').select('*').limit(1);
+                if (error) {
+                    console.error('Schema Check Error:', error);
+                    return;
+                }
+                if (data && data.length > 0) {
+                    if (!('type' in data[0])) {
+                        console.warn('CRITICAL: The column "type" is missing in your "series" table!');
+                        showToast('⚠️ تحذير: عمود "type" مفقود في قاعدة البيانات. يرجى إضافته من Supabase SQL Editor.', 10000);
+                        console.log('Run this SQL in Supabase SQL Editor: ALTER TABLE series ADD COLUMN type text DEFAULT \'series\';');
+                    } else {
+                        console.log('Database Schema: "type" column exists.');
+                    }
+                }
+            } catch (e) { console.error('Schema check failed:', e); }
+        }
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            renderAdminData();
+            checkDatabaseSchema();
+            const config = await db.getConfig();
+            if (config) {
+                if (config.siteName) document.getElementById('site-name-val').value = config.siteName;
+                if (config.siteLogo) document.getElementById('site-logo-val').value = config.siteLogo;
+                if (config.whatsapp) document.getElementById('site-whatsapp-val').value = config.whatsapp;
+                if (config.email) document.getElementById('site-email-val').value = config.email;
+                if (config.androidLink) document.getElementById('app-android-val').value = config.androidLink;
+                if (config.iosLink) document.getElementById('app-ios-val').value = config.iosLink;
+                if (config.welcomePoints) document.getElementById('reward-welcome-val').value = config.welcomePoints;
+                if (config.referralPoints) document.getElementById('reward-referral-val').value = config.referralPoints;
+                if (config.adInterval) document.getElementById('ad-global-interval').value = config.adInterval;
+            }
+            
+            const initialTab = window.location.hash.substring(1) || 'dashboard';
+            switchTab(initialTab);
+        });
+
+        // --- Filter & Pagination Handlers ---
+        window.handleAdminSearch = (val) => {
+            adminSearchQuery = val.toLowerCase().trim();
+            currentPage = 1;
+            renderAdminData();
+        };
+
+        window.handleAdminCategoryFilter = (val) => {
+            adminCategoryFilter = val;
+            currentPage = 1;
+            renderAdminData();
+        };
+
+        window.changeItemsPerPage = (val) => {
+            itemsPerPage = parseInt(val);
+            currentPage = 1;
+            renderAdminData();
+        };
+
+        // --- Category Management ---
+        window.editCategory = async (idx) => {
+            const categories = await db.getCategories();
+            const catName = categories[idx];
+            document.getElementById('old-cat-name').value = catName;
+            document.getElementById('cat-name').value = catName;
+            document.getElementById('cat-form-title').innerText = 'تعديل التصنيف';
+            document.getElementById('cat-submit-btn').innerHTML = '<i class="fa-solid fa-save"></i> حفظ التغييرات';
+            document.getElementById('cat-cancel-btn').style.display = 'flex';
+            document.getElementById('cat-name').focus();
+        };
+
+        window.cancelEditCategory = () => {
+            document.getElementById('old-cat-name').value = '';
+            document.getElementById('cat-name').value = '';
+            document.getElementById('cat-form-title').innerText = 'إضافة تصنيف';
+            document.getElementById('cat-submit-btn').innerHTML = '<i class="fa-solid fa-plus"></i> إضافة التصنيف';
+            document.getElementById('cat-cancel-btn').style.display = 'none';
+        };
+
+        window.deleteCategory = async (idx) => {
+            const categories = await db.getCategories();
+            const catName = categories[idx];
+            showConfirm('هل أنت متأكد من حذف تصنيف ' + catName + '؟', async () => {
+                if (await db.deleteCategory(catName)) {
+                    showToast('تم الحذف');
+                    renderAdminData();
+                }
+            });
+        };
+
+        document.getElementById('add-category-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('cat-name').value.trim();
+            const oldName = document.getElementById('old-cat-name').value;
+            
+            if (name) {
+                const success = await db.saveCategory(name, oldName || null);
+                if (success) {
+                    showToast('تم الحفظ بنجاح');
+                    cancelEditCategory();
+                    renderAdminData();
+                } else {
+                    showToast('فشل الحفظ، ربما الاسم موجود مسبقاً');
+                }
+            }
+        });
+
+        // --- Other Handlers ---
+        window.saveGlobalAdSettings = () => {
+            localStorage.setItem('reelar_ad_interval', document.getElementById('ad-global-interval').value);
+            showToast('تم الحفظ');
+        };
+
+        window.resetSettings = () => {
+            showConfirm('إعادة الإعدادات للأصل؟', () => {
+                localStorage.removeItem('reelar_config');
+                window.location.reload();
+            });
+        };
+
+        window.handleCloudMigration = () => {
+            showConfirm('هل تريد نقل جميع البيانات من LocalStorage إلى السحابة؟ سيتم دمج البيانات المحلية مع السحابة.', async () => {
+                showToast('جاري نقل البيانات... برجاء الانتظار');
+                try {
+                    const success = await db.migrateLocalToCloud();
+                    if (success) {
+                        showToast('تم نقل البيانات بنجاح إلى السحابة! 🚀');
+                        renderAdminData();
+                    }
+                } catch (e) {
+                    console.error(e);
+                    showToast('فشل النقل، تحقق من اتصالك');
+                }
+            });
+        };
+
+        document.getElementById('settings-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const config = {
+                siteName: document.getElementById('site-name-val').value,
+                siteLogo: document.getElementById('site-logo-val').value,
+                whatsapp: document.getElementById('site-whatsapp-val').value,
+                email: document.getElementById('site-email-val').value,
+                androidLink: document.getElementById('app-android-val').value,
+                iosLink: document.getElementById('app-ios-val').value,
+                welcomePoints: parseInt(document.getElementById('reward-welcome-val').value || 0),
+                referralPoints: parseInt(document.getElementById('reward-referral-val').value || 0),
+                adInterval: parseInt(document.getElementById('ad-global-interval').value || 3)
+            };
+            if (await db.saveConfig(config)) {
+                showToast('تم حفظ الإعدادات بنجاح');
+            }
+        });
+
+        // Make functions global for HTML event handlers
+        // (Already assigned switchTab above)
+
+    </script>
+</body>
+</html>
