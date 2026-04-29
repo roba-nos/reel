@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ReelArab | ريلز</title>
+    <link rel="stylesheet" href="global.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        body {
+            background: transparent;
+            overflow: hidden;
+            margin: 0;
+
+        }
+
+        .reels-wrapper {
+            height: 100vh;
+            height: 100dvh;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            scroll-behavior: auto;
+        }
+
+        .reels-wrapper::-webkit-scrollbar {
+            display: none;
+        }
+
+        .reels-wrapper.locked {
+            overflow-y: hidden !important;
+            scroll-snap-type: none !important;
+        }
+
+        .reel-item {
+            height: 100vh;
+            height: 100dvh;
+            width: 100%;
+            scroll-snap-align: start;
+            scroll-snap-stop: always;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reel-content-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Mobile: wrapper and video fill entire reel-item */
+        .reel-content-wrapper {
+            width: 100%;
+            height: 100%;
+        }
+
+        .video-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            cursor: pointer;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .video-target {
+            width: 100%;
+            height: 100%;
+        }
+
+        .reel-video,
+        .reel-iframe {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border: none;
+            pointer-events: none;
+            transition: all 0.5s ease;
+        }
+
+        /* Landscape / Non-Portrait Video Adjustment */
+        .video-container.is-landscape .reel-video,
+        .video-container.is-landscape .reel-iframe,
+        .video-container.is-landscape iframe {
+            object-fit: contain !important;
+            background: #000;
+        }
+
+        /* Fullscreen Specific Fixes */
+        .video-container:fullscreen {
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-container:fullscreen .reel-video,
+        .video-container:fullscreen .reel-iframe,
+        .video-container:fullscreen iframe {
+            object-fit: contain !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* Vendor Prefixes for Fullscreen */
+        .video-container:-webkit-full-screen { background: #000; display: flex; align-items: center; justify-content: center; }
+        .video-container:-webkit-full-screen .reel-video { object-fit: contain !important; }
+        .video-container:-moz-full-screen { background: #000; display: flex; align-items: center; justify-content: center; }
+        .video-container:-moz-full-screen .reel-video { object-fit: contain !important; }
+        .video-container:-ms-fullscreen { background: #000; display: flex; align-items: center; justify-content: center; }
+        .video-container:-ms-fullscreen .reel-video { object-fit: contain !important; }
+
+        .video-protect-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0);
+        }
+
+        .play-pause-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transition: 0.2s;
+            pointer-events: none;
+            z-index: 6;
+        }
+
+        .play-pause-overlay i {
+            font-size: 50px;
+            color: white;
+        }
+
+        .paused .play-pause-overlay {
+            opacity: 1;
+        }
+
+        .reel-ui-container {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0.85) 0%, transparent 40%, transparent 70%, rgba(0, 0, 0, 0.3) 100%);
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 20px 20px 90px;
+            z-index: 10;
+        }
+
+        .reel-info {
+            pointer-events: auto;
+            max-width: 82%;
+        }
+
+        .reel-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .reel-desc {
+            font-size: 13px;
+            opacity: 0.8;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .btn-watch-delayed {
+            opacity: 0;
+            max-height: 0;
+            transition: 0.5s;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.1);
+            width: 100%;
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border-radius: 8px;
+        }
+
+        .btn-watch-delayed.visible {
+            opacity: 1;
+            max-height: 50px;
+            margin-top: 12px;
+            pointer-events: auto;
+            padding: 12px;
+        }
+
+        .btn-watch-delayed.active-red {
+            background: var(--accent);
+            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+        }
+
+        .reel-actions {
+            position: absolute;
+            left: 15px;
+            bottom: 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            pointer-events: auto;
+            align-items: center;
+            z-index: 15;
+        }
+
+        .action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .action-btn i {
+            font-size: 28px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+        }
+
+        .action-btn span {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .reel-top-bar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            left: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 15;
+        }
+
+        .control-btn {
+            width: 38px;
+            height: 38px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+
+        .desktop-info-panel {
+            display: none;
+            width: 340px;
+            height: 600px;
+            background: rgba(18, 18, 20, 0.85);
+            backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: none;
+            border-radius: 0px 35px 35px 0 !important;
+            padding: 35px;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 15px 30px 80px rgba(0, 0, 0, 0.6);
+            animation: fadeInPanel 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+            direction: rtl;
+            text-align: right;
+        }
+
+        @keyframes fadeInPanel {
+            from {
+                opacity: 0;
+                transform: translateX(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .side-poster {
+            width: 100%;
+            height: 190px;
+            border-radius: 18px;
+            object-fit: cover;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .side-label {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-align: right;
+        }
+
+        .side-title {
+            font-size: 24px;
+            font-weight: 900;
+            color: white;
+            line-height: 1.2;
+            text-align: right;
+        }
+
+        .side-desc {
+            font-size: 13px;
+            opacity: 0.55;
+            line-height: 1.7;
+            color: #ddd;
+            flex: 1;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 5;
+            -webkit-box-orient: vertical;
+            text-align: right;
+        }
+
+        .desktop-nav-arrows {
+            display: none;
+        }
+
+        .ad-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 10000;
+            background: #000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: 0.6s ease;
+        }
+
+        @media (min-width: 1024px) {
+            .ad-overlay {
+                border-radius: 0 35px 35px 0;
+            }
+        }
+
+        .ad-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .ad-video-bg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .ad-ui-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 40px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 40%);
+            pointer-events: none;
+        }
+
+        .ad-skip-container {
+            position: absolute;
+            bottom: 120px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            pointer-events: auto;
+        }
+
+        .ad-glass-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 40px;
+            padding: 50px;
+            width: 90%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .ad-timer-ring {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 3px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 22px;
+            color: var(--accent);
+        }
+
+        .details-modal,
+        .share-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .details-modal.active,
+        .share-modal.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--surface);
+            width: 100%;
+            max-width: 600px;
+            border-radius: 24px 24px 0 0;
+            overflow: hidden;
+            position: relative;
+            animation: sheetSlide 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            border-top: 1px solid var(--border);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        @keyframes sheetSlide {
+            from {
+                transform: translateY(100%);
+            }
+
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            body {
+                background: radial-gradient(ellipse at 60% 50%, #200808 0%, #0d0d10 45%, #060608 100%);
+            }
+
+            .app-container {
+                background: transparent !important;
+            }
+
+            main {
+                background: transparent !important;
+                overflow: visible !important;
+            }
+
+            .reels-wrapper {
+                height: 100vh;
+                overflow-y: scroll;
+                scroll-snap-type: y mandatory;
+                scrollbar-width: none;
+                background: transparent;
+            }
+
+            .reel-item {
+                width: 100%;
+                height: 100vh;
+                scroll-snap-align: start;
+                scroll-snap-stop: always;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: transparent;
+            }
+
+            .video-container {
+                width: 420px;
+                height: calc(100vh - 60px);
+                border-radius: 35px 0px 0px 35px;
+                box-shadow: -15px 30px 80px rgba(0, 0, 0, 0.6);
+                overflow: hidden;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                flex-shrink: 0;
+                order: 2;
+            }
+
+            .desktop-info-panel {
+                order: 1;
+
+                border-right: none !important;
+                border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+                height: calc(100vh - 60px) !important;
+                width: 340px;
+                display: flex;
+            }
+
+            .desktop-info-panel {
+                display: flex;
+            }
+
+            .reel-item .reel-info {
+                display: none;
+            }
+
+            .mobile-actions {
+                display: none !important;
+            }
+
+            .reel-actions {
+                position: static;
+                transform: none;
+                order: 2;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 22px;
+                padding: 20px 10px;
+                z-index: 20;
+                pointer-events: auto;
+            }
+
+            .desktop-nav-arrows {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+                z-index: 1000;
+                order: 0;
+                /* Position them on the far right in RTL */
+                margin-left: 20px;
+            }
+
+            .nav-arrow-btn {
+                width: 46px;
+                height: 46px;
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 50%;
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                cursor: pointer;
+                transition: 0.3s;
+            }
+
+            .nav-arrow-btn:hover {
+                background: var(--accent);
+                transform: scale(1.1);
+                border-color: transparent;
+            }
+        }
+
+        .ad-card-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #000;
+        }
+
+        .ad-item-ui {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 40px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        @media (min-width: 1024px) {
+            .ad-card-item {
+                width: 420px;
+                height: calc(100vh - 60px);
+                border-radius: 35px 0 0 35px;
+                box-shadow: -15px 30px 80px rgba(0, 0, 0, 0.6);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                margin-left: 66px;
+            }
+        }
+
+        .ad-overlay {
+            display: none;
+        }
+
+        .ad-mini-timer {
+            position: absolute;
+            top: 30px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 8px 15px;
+            border-radius: 12px;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        @keyframes adPop {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .ad-video-bg {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        /* PC-only Logout styles */
+        @media (max-width: 768px) {
+            .nav-item-logout-pc { display: none !important; }
+        }
+        @media (min-width: 769px) {
+            .nav-item-logout-pc { margin-top: auto; color: #ef4444 !important; }
+            .nav-item-logout-pc:hover { background: rgba(239, 68, 68, 0.1) !important; }
+        }
+        /* UI Auto-hide Styles */
+        .reel-ui-container,
+        .reel-top-bar,
+        .reel-actions,
+        .desktop-nav-arrows {
+            transition: opacity 0.5s ease, visibility 0.5s;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .ui-hidden .reel-ui-container,
+        .ui-hidden .reel-top-bar,
+        .ui-hidden .reel-actions,
+        .ui-hidden .desktop-nav-arrows {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Modals -->
+        <div id="details-modal" class="details-modal" onclick="closeDetails()">
+            <div class="modal-card" onclick="event.stopPropagation()">
+                <div class="modal-close" onclick="closeDetails()"
+                    style="position:absolute; top:15px; left:15px; cursor:pointer; color:white;"><i
+                        class="fa-solid fa-xmark"></i></div>
+                <div id="modal-content"></div>
+            </div>
+        </div>
+
+        <div id="share-modal" class="share-modal" onclick="closeShare()">
+            <div class="modal-card" onclick="event.stopPropagation()">
+                <div style="padding: 30px;">
+                    <h3 style="text-align: center; margin-bottom: 25px; color: white;">مشاركة المسلسل</h3>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; text-align: center;">
+                        <a id="share-wa" href="#" class="action-btn" target="_blank" style="text-decoration: none;"><i
+                                class="fa-brands fa-whatsapp"
+                                style="width: 50px; height: 50px; border-radius: 50%; background: #25D366; display: flex; align-items: center; justify-content: center; font-size: 24px;"></i><span
+                                style="color: white; font-size: 12px; margin-top: 8px;">واتساب</span></a>
+                        <a id="share-fb" href="#" class="action-btn" target="_blank" style="text-decoration: none;"><i
+                                class="fa-brands fa-facebook"
+                                style="width: 50px; height: 50px; border-radius: 50%; background: #1877F2; display: flex; align-items: center; justify-content: center; font-size: 24px;"></i><span
+                                style="color: white; font-size: 12px; margin-top: 8px;">فيسبوك</span></a>
+                        <a id="share-tw" href="#" class="action-btn" target="_blank" style="text-decoration: none;"><i
+                                class="fa-brands fa-x-twitter"
+                                style="width: 50px; height: 50px; border-radius: 50%; background: #111; display: flex; align-items: center; justify-content: center; font-size: 24px;"></i><span
+                                style="color: white; font-size: 12px; margin-top: 8px;">X</span></a>
+                        <div class="action-btn" onclick="copyReelLink()" style="cursor: pointer;"><i
+                                class="fa-solid fa-link"
+                                style="width: 50px; height: 50px; border-radius: 50%; background: #555; display: flex; align-items: center; justify-content: center; font-size: 24px;"></i><span
+                                style="color: white; font-size: 12px; margin-top: 8px;">نسخ الرابط</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-logo">
+                <h1 style="color: var(--accent); font-size: 35px; font-weight: 800;">Reel<span
+                        style="color: white;">Arab</span></h1>
+            </div>
+            <a href="index.html" class="nav-item"><i class="fa-solid fa-house"></i><span
+                    data-t="home">الرئيسية</span></a>
+            <a href="explore.html" class="nav-item"><i class="fa-solid fa-compass"></i><span
+                    data-t="explore">اكتشف</span></a>
+            <a href="reels.html" class="nav-item active"><i class="fa-solid fa-clapperboard"></i><span
+                    data-t="reels">ريلز</span></a>
+            <a href="favorites.html" class="nav-item"><i class="fa-solid fa-bookmark"></i><span
+                    data-t="favorites">قائمتي</span></a>
+            <a href="profile.html" class="nav-item"><i class="fa-solid fa-circle-user"></i><span
+                    data-t="profile">ملفي</span></a>
+            <a href="#" class="nav-item nav-item-logout-pc" onclick="openLogoutModal()"><i class="fa-solid fa-right-from-bracket"></i><span data-t="logout">خروج</span></a>
+        </nav>
+
+        <main style="flex: 1; overflow: hidden; position: relative;">
+            <div id="reels-container" class="reels-wrapper"></div>
+        </main>
+    </div>
+
+    <script src="shared.js"></script>
+    <script>
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        let isGlobalMuted = false;
+        let watchedCount = 0;
+        let lastSeenIdx = -1;
+        let currentReels = [];
+        let activeWatchSeconds = 0;
+        let claimablePoints = 0;
+        let currentActiveReel = null;
+        let ytPlayers = {}; // Track YouTube players by reel index
+
+        async function renderReels() {
+            const reelLang = getCurrentLang();
+            const reelT = translations[reelLang];
+            const premium = await isPremium();
+
+            currentReels = shuffleArray(await getSeries());
+            const container = document.getElementById('reels-container');
+            container.innerHTML = currentReels.map((s, idx) => `
+                    <div class="reel-item" id="reel-${idx}" data-video="${s.trailer_url || s.video || s.link}">
+                        <div class="reel-content-wrapper">
+                            <!-- Desktop Nav Arrows -->
+                            <div class="desktop-nav-arrows">
+                                <button class="nav-arrow-btn" onclick="scrollReels(-1)"><i class="fa-solid fa-chevron-up"></i></button>
+                                <button class="nav-arrow-btn" onclick="scrollReels(1)"><i class="fa-solid fa-chevron-down"></i></button>
+                            </div>
+
+                            <div class="video-container" onclick="togglePlay(this)">
+                                <div class="video-target"></div>
+                                <div class="video-protect-overlay"></div>
+                                <div class="play-pause-overlay"><i class="fa-solid fa-play"></i></div>
+                                <div class="reel-top-bar">
+                                    <a href="index.html" class="control-btn"><i class="fa-solid fa-arrow-right"></i></a>
+                                    <div style="display:flex; gap:10px; align-items:center;">
+                                        <div id="watch-reward-container" class="watch-reward-container" style="display: flex !important; align-items: center; background: rgba(0,0,0,0.5); border-radius: 20px; padding: 4px; border: 1px solid rgba(255,255,255,0.1); pointer-events: auto;">
+                                            <div class="watch-reward-progress" style="width: 32px; height: 32px; border-radius: 50%; background: conic-gradient(var(--accent) 0%, transparent 0%); display: flex; align-items: center; justify-content: center; position: relative;">
+                                                <div style="width: 26px; height: 26px; background: #111; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px;"><i class="fa-solid fa-gift" style="color: #fbbf24; font-size: 12px;"></i></div>
+                                            </div>
+                                            <button class="player-claim-btn btn btn-accent" style="display: none; padding: 0 10px; font-size: 12px; font-weight: 800; height: 32px; margin-right: 8px; border-radius: 16px; background: linear-gradient(135deg, #f59e0b, #ef4444); border: 1px solid #fbbf24;" onclick="claimWatchPoints(event)">
+                                                ${reelT['claim_prize'] || 'استلم'} <span class="player-claim-count" style="margin: 0 3px;">1</span> ${reelT['points'] || 'نقطة'}
+                                            </button>
+                                        </div>
+                                        <button class="control-btn mute-toggle" onclick="toggleMute(this, event)"><i class="fa-solid fa-volume-high"></i></button>
+                                        <button class="control-btn" onclick="toggleReelFullscreen(this, event)"><i class="fa-solid fa-expand"></i></button>
+                                    </div>
+                                </div>
+                                <!-- Mobile-only actions -->
+                                <div class="reel-actions mobile-actions">
+                                    <div class="action-btn" onclick="event.stopPropagation(); toggleFavorite(${s.id}, this)"><i class="fa-solid fa-bookmark" style="color: ${isFavorite(s.id) ? 'var(--accent)' : 'white'}"></i><span data-t="save">${reelT['save']}</span></div>
+                                    <div class="action-btn" onclick="event.stopPropagation(); toggleLike(this)"><i class="fa-solid fa-heart"></i><span data-t="like">${reelT['like']}</span></div>
+                                    <div class="action-btn" onclick="event.stopPropagation(); openDetails(${s.id})"><i class="fa-solid fa-circle-info"></i><span data-t="details">${reelT['details']}</span></div>
+                                    <div class="action-btn" onclick="event.stopPropagation(); shareContent(${s.id})"><i class="fa-solid fa-share"></i><span data-t="share">${reelT['share']}</span></div>
+                                </div>
+                                <div class="reel-ui-container">
+                                    <div class="reel-info">
+                                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+                                            <h2 class="reel-title" style="margin:0;">${s.title}</h2>
+                                            <span style="background:var(--accent); padding:2px 8px; border-radius:6px; font-size:10px; font-weight:800; color:white;">${s.category_name || s.category}</span>
+                                            <span style="background:rgba(255,255,255,0.15); padding:2px 8px; border-radius:6px; font-size:10px; font-weight:700;">${1 + (s.episodes ? s.episodes.length : 0)} ${reelT['episode']}</span>
+                                        </div>
+                                        <p class="reel-desc">${s.description}</p>
+<a href="series.html?id=${s.id}" class="btn btn-watch-delayed"><span data-t="watch_full_series">شاهد المسلسل بالكامل</span></a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="desktop-info-panel" onclick="event.stopPropagation()">
+                                <img src="${s.poster_url || s.poster}" class="side-poster">
+                                <p class="side-label">${s.category_name || s.category} • ${1 + (s.episodes ? s.episodes.length : 0)} ${reelT['episode']}</p>
+                                <h2 class="side-title">${s.title}</h2>
+                                <p class="side-desc">${s.description}</p>
+                                <!-- Desktop-only actions inside info panel -->
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top: auto;">
+                                    <div class="action-btn desktop-action" onclick="toggleFavorite(${s.id}, this)" style="background:rgba(255,255,255,0.06); border-radius:14px; padding:14px 10px; cursor:pointer;">
+                                        <i class="fa-solid fa-bookmark" style="color: ${isFavorite(s.id) ? 'var(--accent)' : 'white'}"></i><span data-t="save">${reelT['save']}</span>
+                                    </div>
+                                    <div class="action-btn desktop-action" onclick="toggleLike(this)" style="background:rgba(255,255,255,0.06); border-radius:14px; padding:14px 10px; cursor:pointer;">
+                                        <i class="fa-solid fa-heart"></i><span data-t="like">${reelT['like']}</span>
+                                    </div>
+                                    <div class="action-btn desktop-action" onclick="openDetails(${s.id})" style="background:rgba(255,255,255,0.06); border-radius:14px; padding:14px 10px; cursor:pointer;">
+                                        <i class="fa-solid fa-circle-info"></i><span data-t="details">${reelT['details']}</span>
+                                    </div>
+                                    <div class="action-btn desktop-action" onclick="shareContent(${s.id})" style="background:rgba(255,255,255,0.06); border-radius:14px; padding:14px 10px; cursor:pointer;">
+                                        <i class="fa-solid fa-share"></i><span data-t="share">${reelT['share']}</span>
+                                    </div>
+                                </div>
+                                <a href="series.html?id=${s.id}" class="btn btn-accent" style="width: 100%; justify-content: center; font-weight: 800; padding: 15px; border-radius: 14px;"><span data-t="watch_full_series">شاهد المسلسل بالكامل</span></a>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            setupReelObserver();
+        }
+
+        function setupReelObserver() {
+            const obs = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const idParts = entry.target.id.split('-');
+                        if (idParts[0] === 'reel') {
+                            const idx = parseInt(idParts[1]);
+                            console.log(`Reel ${idx} intersecting. lastSeenIdx: ${lastSeenIdx}, watchedCount: ${watchedCount}`);
+
+                            // Only count if it's a new reel (going forward)
+                            if (idx > lastSeenIdx) {
+                                watchedCount++;
+                                lastSeenIdx = idx;
+
+                                // Increment View
+                                const s = currentReels[idx];
+                                if (s) {
+                                    incrementView(s.id);
+                                    trackUserWatch(s.id);
+                                }
+
+                                const interval = parseInt(localStorage.getItem('reelar_ad_interval') || '3');
+                                console.log(`Checking ad trigger: watchedCount=${watchedCount}, interval=${interval}`);
+                                if (watchedCount >= interval) {
+                                    console.log('Triggering Ad Injection...');
+                                    watchedCount = 0;
+                                    injectDynamicAd(entry.target).then(adEl => {
+                                        if (adEl) obs.observe(adEl);
+                                    });
+                                }
+                            } else {
+                            lastSeenIdx = idx;
+                        }
+                        currentActiveReel = entry.target;
+                        loadUniversalVideo(entry.target);
+
+                        // Infinite Loop Trigger
+                        if (idx === currentReels.length - 1) {
+                            appendMoreReels(obs);
+                        }
+                    }
+                } else {
+                    if (currentActiveReel === entry.target) {
+                        currentActiveReel = null;
+                    }
+                    if (!entry.target.classList.contains('ad-item')) {
+                        pauseUniversalVideo(entry.target);
+                    }
+                }
+            });
+        }, { threshold: 0.6 });
+        document.querySelectorAll('.reel-item').forEach(i => obs.observe(i));
+    }
+
+    async function appendMoreReels(observer) {
+        const series = await getSeries();
+        const shuffled = shuffleArray([...series]);
+        const container = document.getElementById('reels-container');
+        const startIdx = currentReels.length;
+        const reelLang = getCurrentLang();
+        const reelT = translations[reelLang];
+        const premium = await isPremium();
+
+        shuffled.forEach((s, i) => {
+            const idx = startIdx + i;
+            currentReels.push(s);
+            const epCount = 1 + (s.episodes ? s.episodes.length : 0);
+            
+            const reelHtml = `
+                <div class="reel-item" id="reel-${idx}" data-video="${s.trailer_url || s.video || s.link}">
+                    <div class="reel-content-wrapper">
+                        <!-- Desktop Nav Arrows -->
+                        <div class="desktop-nav-arrows">
+                            <button class="nav-arrow-btn" onclick="scrollReels(-1)"><i class="fa-solid fa-chevron-up"></i></button>
+                            <button class="nav-arrow-btn" onclick="scrollReels(1)"><i class="fa-solid fa-chevron-down"></i></button>
+                        </div>
+
+                        <div class="video-container" onclick="togglePlay(this)">
+                            <div class="video-target"></div>
+                            <div class="video-protect-overlay"></div>
+                            <div class="play-pause-overlay"><i class="fa-solid fa-play"></i></div>
+                            <div class="reel-top-bar">
+                                <a href="index.html" class="control-btn"><i class="fa-solid fa-arrow-right"></i></a>
+                                <div style="display:flex; gap:10px; align-items:center;">
+                                    <div id="watch-reward-container" class="watch-reward-container" style="display: flex !important; align-items: center; background: rgba(0,0,0,0.5); border-radius: 20px; padding: 4px; border: 1px solid rgba(255,255,255,0.1); pointer-events: auto;">
+                                        <div class="watch-reward-progress" style="width: 32px; height: 32px; border-radius: 50%; background: conic-gradient(var(--accent) 0%, transparent 0%); display: flex; align-items: center; justify-content: center; position: relative;">
+                                            <div style="width: 26px; height: 26px; background: #111; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px;"><i class="fa-solid fa-gift" style="color: #fbbf24; font-size: 12px;"></i></div>
+                                        </div>
+                                        <button class="player-claim-btn btn btn-accent" style="display: none; padding: 0 10px; font-size: 12px; font-weight: 800; height: 32px; margin-right: 8px; border-radius: 16px; background: linear-gradient(135deg, #f59e0b, #ef4444); border: 1px solid #fbbf24;" onclick="claimWatchPoints(event)">
+                                            ${reelT['claim_prize'] || 'استلم'} <span class="player-claim-count" style="margin: 0 3px;">1</span> ${reelT['points'] || 'نقطة'}
+                                        </button>
+                                    </div>
+                                    <button class="control-btn mute-toggle" onclick="toggleMute(this, event)"><i class="fa-solid fa-volume-high"></i></button>
+                                    <button class="control-btn" onclick="toggleReelFullscreen(this, event)"><i class="fa-solid fa-expand"></i></button>
+                                </div>
+                            </div>
+                            <!-- Mobile-only actions -->
+                            <div class="reel-actions mobile-actions">
+                                <div class="action-btn" onclick="event.stopPropagation(); toggleFavorite(${s.id}, this)"><i class="fa-solid fa-bookmark" style="color: ${isFavorite(s.id) ? 'var(--accent)' : 'white'}"></i><span data-t="save">${reelT['save']}</span></div>
+                                <div class="action-btn" onclick="event.stopPropagation(); toggleLike(this)"><i class="fa-solid fa-heart"></i><span data-t="like">${reelT['like']}</span></div>
+                                <div class="action-btn" onclick="event.stopPropagation(); openDetails(${s.id})"><i class="fa-solid fa-circle-info"></i><span data-t="details">${reelT['details']}</span></div>
+                                <div class="action-btn" onclick="event.stopPropagation(); shareContent(${s.id})"><i class="fa-solid fa-share"></i><span data-t="share">${reelT['share']}</span></div>
+                            </div>
+                            <div class="reel-ui-container">
+                                <div class="reel-info">
+                                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+                                        <h2 class="reel-title" style="margin:0;">${s.title}</h2>
+                                        <span style="background:var(--accent); padding:2px 8px; border-radius:6px; font-size:10px; font-weight:800; color:white;">${s.category_name || s.category}</span>
+                                        <span style="background:rgba(255,255,255,0.15); padding:2px 8px; border-radius:6px; font-size:10px; font-weight:700;">${epCount} ${reelT['episode']}</span>
+                                    </div>
+                                    <p class="reel-desc">${s.description}</p>
+                                    <a href="series.html?id=${s.id}" class="btn btn-watch-delayed"><span data-t="watch_full_series">شاهد المسلسل بالكامل</span></a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="desktop-info-panel" onclick="event.stopPropagation()">
+                            <img src="${s.poster_url || s.poster}" class="side-poster">
+                            <p class="side-label">${s.category_name || s.category} • ${epCount} ${reelT['episode']}</p>
+                            <h2 class="side-title">${s.title}</h2>
+                            <p class="side-desc">${s.description}</p>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top: auto; margin-bottom: 20px;">
+                                <div class="action-btn desktop-action" onclick="toggleFavorite(${s.id}, this)" style="background:rgba(255,255,255,0.06); border-radius:14px; padding:14px 10px; cursor:pointer;">
+                                    <i class="fa-solid fa-bookmark" style="color: ${isFavorite(s.id) ? 'var(--accent)' : 'white'}"></i><span data-t="save">${reelT['save']}</span>
+                                </div>
+                                <div class="action-btn desktop-action" onclick="toggleLike(this)" style="background:rgba(255,255,255,0.06); border-radius:14px; padding:14px 10px; cursor:pointer;">
+                                    <i class="fa-solid fa-heart"></i><span data-t="like">${reelT['like']}</span>
+                                </div>
+                                <div class="action-btn desktop-action" onclick="openDetails(${s.id})" style="background:rgba(255,255,255,0.06); border-radius:14px; padding:14px 10px; cursor:pointer;">
+                                    <i class="fa-solid fa-circle-info"></i><span data-t="details">${reelT['details']}</span>
+                                </div>
+                                <div class="action-btn desktop-action" onclick="shareContent(${s.id})" style="background:rgba(255,255,255,0.06); border-radius:14px; padding:14px 10px; cursor:pointer;">
+                                    <i class="fa-solid fa-share"></i><span data-t="share">${reelT['share']}</span>
+                                </div>
+                            </div>
+                            <a href="series.html?id=${s.id}" class="btn btn-accent" style="width: 100%; justify-content: center; font-weight: 800; padding: 15px; border-radius: 14px;"><span data-t="watch_full_series">شاهد المسلسل بالكامل</span></a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', reelHtml);
+            const newReel = document.getElementById(`reel-${idx}`);
+            observer.observe(newReel);
+        });
+    }
+
+        async function injectDynamicAd(afterItem) {
+            if (await isPremium()) return;
+
+            console.log('Requesting Ads from DB (Force Refresh)...');
+            const activeAds = await db.getAds(true);
+            console.log('Fetched Active Ads for Reels:', activeAds);
+
+            if (!activeAds || activeAds.length === 0) {
+                console.warn('No active ads found to inject. Please check Admin Panel.');
+                return;
+            }
+
+            const ad = activeAds[Math.floor(Math.random() * activeAds.length)];
+            console.log('Selected Ad for Injection:', ad);
+            const adId = 'dynamic-ad-' + Date.now();
+            const countdown = parseInt(ad.timer || 5);
+            const targetUrl = ad.target || "";
+
+            // Track Impression
+            trackAdEvent(ad.id, 'view');
+
+            let adContent = '';
+            if (ad.type === 'video' || ad.type === 'rewarded') {
+                adContent = `
+                    <div class="ad-click-wrapper" style="width:100%; height:100%; cursor:${targetUrl ? 'pointer' : 'default'};" onclick="handleAdClick('${ad.id}', '${targetUrl}')">
+                        <video autoplay playsinline loop class="ad-video-bg" style="border-radius: inherit;">
+                            <source src="${ad.video}" type="video/mp4">
+                        </video>
+                    </div>`;
+            } else {
+                adContent = `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#000; color:white; padding:20px; text-align:center;">
+                    <div>
+                        <i class="fa-solid fa-rectangle-ad" style="font-size:50px; color:var(--accent); margin-bottom:15px;"></i>
+                        <p style="font-size:14px; opacity:0.8;">${ad.unit_id || 'AdMob Reward'}</p>
+                    </div>
+                    <div style="display:none;">${ad.script || ''}</div>
+                </div>`;
+            }
+
+            const adHtml = `
+                <div class="reel-item ad-item" id="${adId}">
+                    <div class="reel-content-wrapper">
+                        <div class="ad-card-item">
+                            ${adContent}
+                            
+                            <!-- Mini Timer (Visible First) -->
+                            <div class="ad-mini-timer" id="mini-timer-${adId}">
+                                <span>إعلان ممول</span>
+                                <span style="width:1px; height:12px; background:rgba(255,255,255,0.2);"></span>
+                                <span id="mini-countdown-${adId}">${countdown + 5}</span>
+                            </div>
+
+                            <!-- Premium Card UI (Initially Hidden) -->
+                            <div id="premium-ui-${adId}" style="position:absolute; inset:0; z-index:100; display:none; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center;">
+                                <div style="background: rgba(255,255,255,0.03); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.1); border-radius: 40px; padding: 40px 25px; width: 100%; max-width: 380px; box-shadow: 0 40px 80px rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; position: relative; animation: adPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                                    <div style="position: absolute; top: 20px; right: 20px; background: rgba(245,158,11,0.2); color: #fbbf24; padding: 5px 12px; border-radius: 100px; font-size: 10px; font-weight: 800; text-transform: uppercase;">إعلان ممول</div>
+                                    <div style="width:80px; height:80px; background: linear-gradient(135deg, #f59e0b, #ef4444); border-radius: 24px; display:flex; align-items:center; justify-content:center; margin-bottom:25px; box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);">
+                                        <i class="fa-solid fa-crown" style="font-size:35px; color:white;"></i>
+                                    </div>
+                                    <h2 style="font-size:22px; font-weight:900; margin-bottom:10px; color:white;">استمتع بمشاهدة بدون فواصل</h2>
+                                    <p style="color:rgba(255,255,255,0.6); font-size:13px; margin-bottom:25px; line-height:1.6; max-width: 300px;">
+                                        اشترك الآن لإزالة الإعلانات والحصول على تجربة سينمائية فريدة ونقاط إضافية.
+                                    </p>
+                                    <div style="width: 100%; background: rgba(255,255,255,0.05); border-radius: 20px; padding: 15px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.05);">
+                                        <div style="color: rgba(255,255,255,0.4); font-size: 11px; margin-bottom: 8px;">سيتم التخطي تلقائياً خلال</div>
+                                        <div style="font-size: 24px; font-weight: 900; color: #f59e0b;" id="timer-${adId}">${countdown}</div>
+                                    </div>
+                                    <div style="width:100%; display:flex; flex-direction:column; gap:12px;">
+                                        <button onclick="location.href='profile.html#vip'" style="width:100%; padding: 16px; border-radius: 18px; border: none; background: white; color: black; font-weight: 900; font-size: 14px; cursor: pointer;">
+                                            اكتشف باقات الاشتراك
+                                        </button>
+                                        <button id="btn-${adId}" style="width:100%; padding: 16px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; font-weight: 700; font-size: 14px; cursor: pointer; opacity: 0.4; pointer-events: none;" onclick="handleAdSkip('${adId}', '${ad.type}', ${ad.reward || 0})">
+                                            تخطي الإعلان
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            afterItem.insertAdjacentHTML('afterend', adHtml);
+            const adItemEl = document.getElementById(adId);
+
+            // Lock and Scroll to Ad
+            const wrapper = document.getElementById('reels-container');
+            wrapper.classList.add('locked');
+
+            setTimeout(() => {
+                adItemEl.scrollIntoView({ behavior: 'smooth' });
+                startAdTimer(adId, countdown);
+            }, 100);
+
+            return adItemEl;
+        }
+
+        window.handleAdClick = (adId, targetUrl) => {
+            if (targetUrl) {
+                trackAdEvent(adId, 'click');
+                window.open(targetUrl, '_blank');
+            }
+        };
+
+        function startAdTimer(adId, countdown) {
+            const adItem = document.getElementById(adId);
+            const adVideo = adItem.querySelector('video');
+            if (adVideo) {
+                adVideo.muted = isGlobalMuted;
+                adVideo.play().catch(() => {
+                    adVideo.muted = true;
+                    adVideo.play();
+                });
+            }
+
+            const miniTimer = document.getElementById('mini-timer-' + adId);
+            const miniDisplay = document.getElementById('mini-countdown-' + adId);
+            const premiumUi = document.getElementById('premium-ui-' + adId);
+            const timerEl = document.getElementById('timer-' + adId);
+            const btn = document.getElementById('btn-' + adId);
+
+            let miniTimeLeft = countdown + 5;
+            const miniItv = setInterval(() => {
+                miniTimeLeft--;
+                if (miniDisplay) miniDisplay.innerText = miniTimeLeft;
+                if (miniTimeLeft <= 0) {
+                    clearInterval(miniItv);
+                    if (miniTimer) miniTimer.remove();
+                    if (premiumUi) premiumUi.style.display = 'flex';
+
+                    let timeLeft = countdown;
+                    const itv = setInterval(() => {
+                        timeLeft--;
+                        if (timerEl) timerEl.innerText = timeLeft;
+                        if (timeLeft <= 0) {
+                            clearInterval(itv);
+                            if (btn) {
+                                btn.style.opacity = '1';
+                                btn.style.pointerEvents = 'auto';
+                                btn.innerText = btn.innerText.includes('مكافأة') ? 'تخطي والحصول على الجائزة' : 'تخطي الآن';
+                            }
+                        }
+                    }, 1000);
+                }
+            }, 1000);
+        }
+
+        window.handleAdSkip = (adId, type, reward) => {
+            if (type === 'rewarded') {
+                addBalance(reward);
+                showToast(`تمت إضافة ${reward} نقطة لمكافأتك!`);
+            }
+            removeAdAndContinue(adId);
+        };
+
+        window.removeAdAndContinue = (adId) => {
+            const adItem = document.getElementById(adId);
+            const wrapper = document.getElementById('reels-container');
+            wrapper.classList.remove('locked');
+
+            // Scroll to next item first
+            window.scrollReels(1);
+
+            // Remove the ad element after scroll finishes
+            setTimeout(() => {
+                adItem.remove();
+            }, 800);
+        };
+
+        window.triggerAdOverlay = () => { };
+
+        function loadUniversalVideo(reelItem) {
+            const url = reelItem.dataset.video;
+            const target = reelItem.querySelector('.video-target');
+            const watchBtn = reelItem.querySelector('.btn-watch-delayed');
+            if (target.children.length === 0) {
+                if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                    const ytId = url.split('v=')[1] || url.split('/').pop();
+                    const reelIdx = reelItem.id.split('-')[1];
+                    const divId = `yt-player-${reelIdx}`;
+                    target.innerHTML = `<div id="${divId}"></div>`;
+                    reelItem.querySelector('.video-container').classList.add('is-landscape');
+
+                    const createYT = () => {
+                        ytPlayers[reelIdx] = new YT.Player(divId, {
+                            height: '100%',
+                            width: '100%',
+                            videoId: ytId,
+                            playerVars: {
+                                'autoplay': 1,
+                                'mute': 1,
+                                'controls': 0,
+                                'loop': 1,
+                                'playlist': ytId,
+                                'modestbranding': 1,
+                                'rel': 0
+                            }
+                        });
+                    };
+
+                    if (window.YT && YT.Player) {
+                        createYT();
+                    } else {
+                        window.onYouTubeIframeAPIReady = createYT;
+                    }
+                } else if (url.toLowerCase().includes('.m3u8')) {
+                    const video = document.createElement('video');
+                    video.className = 'reel-video'; video.loop = true; video.playsInline = true; video.muted = isGlobalMuted;
+                    video.onloadedmetadata = () => {
+                        const container = reelItem.querySelector('.video-container');
+                        if (video.videoWidth / video.videoHeight > 1.1) container.classList.add('is-landscape');
+                        else container.classList.remove('is-landscape');
+                    };
+                    target.appendChild(video);
+                    if (Hls.isSupported()) {
+                        const hls = new Hls(); hls.loadSource(url); hls.attachMedia(video);
+                        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => { }));
+                        hls.on(Hls.Events.ERROR, (event, data) => {
+                            if (data.fatal) console.error('HLS Reel Error:', data.type);
+                        });
+                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                        video.src = url; video.play().catch(() => { });
+                    }
+                } else {
+                    target.innerHTML = `<video class="reel-video" loop playsinline ${isGlobalMuted ? 'muted' : ''}><source src="${url}"></video>`;
+                    const v = target.querySelector('video');
+                    v.onloadedmetadata = () => {
+                        const container = reelItem.querySelector('.video-container');
+                        if (v.videoWidth / v.videoHeight > 1.1) container.classList.add('is-landscape');
+                        else container.classList.remove('is-landscape');
+                    };
+                    v.play().catch(() => {
+                        v.muted = true;
+                        v.play().catch(() => {});
+                    });
+                }
+            } else {
+                const v = target.querySelector('video');
+                if (v) { 
+                    v.muted = isGlobalMuted; // Respect global mute state
+                    if (v.videoWidth > 0) {
+                        const container = reelItem.querySelector('.video-container');
+                        if (v.videoWidth / v.videoHeight > 1.1) container.classList.add('is-landscape');
+                        else container.classList.remove('is-landscape');
+                    }
+                    v.play().catch(() => {
+                        v.muted = true;
+                        v.play().catch(() => {});
+                    }); 
+                }
+            }
+            if (watchBtn) {
+                watchBtn.classList.remove('visible', 'active-red');
+                clearTimeout(reelItem.t1); clearTimeout(reelItem.t2);
+                reelItem.t1 = setTimeout(() => watchBtn.classList.add('visible'), 3000);
+                reelItem.t2 = setTimeout(() => watchBtn.classList.add('active-red'), 6000);
+            }
+        }
+
+        function pauseUniversalVideo(reelItem) {
+            const v = reelItem.querySelector('video');
+            if (v) { v.pause(); v.currentTime = 0; }
+            const watchBtn = reelItem.querySelector('.btn-watch-delayed');
+            if (watchBtn) watchBtn.classList.remove('visible', 'active-red');
+        }
+
+        window.togglePlay = (el) => {
+            // Unmute globally on first interaction if needed
+            if (isGlobalMuted) unmuteAllOnInteraction();
+
+            const v = el.querySelector('video');
+            const reelItem = el.closest('.reel-item');
+            const reelIdx = reelItem.id.split('-')[1];
+            const ytPlayer = ytPlayers[reelIdx];
+
+            if (ytPlayer && ytPlayer.getPlayerState) {
+                const state = ytPlayer.getPlayerState();
+                if (state === YT.PlayerState.PLAYING) {
+                    ytPlayer.pauseVideo();
+                    el.classList.add('paused');
+                } else {
+                    ytPlayer.playVideo();
+                    el.classList.remove('paused');
+                }
+            } else if (v) {
+                if (v.paused) { 
+                    v.muted = isGlobalMuted; // Sync with global state
+                    v.play(); 
+                    el.classList.remove('paused'); 
+                } else { 
+                    v.pause(); 
+                    el.classList.add('paused'); 
+                }
+            }
+        };
+
+        window.toggleLike = (btn) => {
+            const icon = btn.querySelector('i');
+            const liked = icon.style.color === 'var(--accent)' || icon.style.color === 'rgb(229, 9, 20)';
+            icon.style.color = liked ? 'white' : 'var(--accent)';
+            icon.style.transform = liked ? 'scale(1)' : 'scale(1.4)';
+            setTimeout(() => icon.style.transform = 'scale(1)', 300);
+        };
+
+        window.scrollReels = (direction) => {
+            const wrapper = document.getElementById('reels-container');
+            if (wrapper.classList.contains('locked')) return;
+
+            const itemHeight = window.innerHeight;
+            wrapper.scrollBy({
+                top: direction * itemHeight,
+                behavior: 'smooth'
+            });
+        };
+
+        window.toggleMute = (btn, e) => {
+            if (e) e.stopPropagation();
+            isGlobalMuted = !isGlobalMuted;
+            document.querySelectorAll('video').forEach(v => v.muted = isGlobalMuted);
+            // Specifically target ad videos too
+            document.querySelectorAll('.ad-video-bg').forEach(v => v.muted = isGlobalMuted);
+            document.querySelectorAll('.mute-toggle i').forEach(i => i.className = isGlobalMuted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high');
+        };
+
+        // UI Auto-hide Logic
+        let uiTimeout;
+        function showReelUI() {
+            document.querySelectorAll('.video-container').forEach(c => c.classList.remove('ui-hidden'));
+            clearTimeout(uiTimeout);
+            uiTimeout = setTimeout(() => {
+                document.querySelectorAll('.video-container').forEach(c => c.classList.add('ui-hidden'));
+            }, 3000);
+        }
+
+        // Add listeners to all video containers for UI show/hide
+        document.addEventListener('mousemove', showReelUI);
+        document.addEventListener('touchstart', showReelUI);
+        document.addEventListener('click', showReelUI);
+
+        window.toggleReelFullscreen = (btn, e) => {
+            if (e) e.stopPropagation();
+            const container = btn.closest('.video-container');
+            const icon = btn.querySelector('i');
+            const isLandscapeVideo = container.classList.contains('is-landscape');
+            
+            showReelUI(); // Ensure UI is shown when toggling
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement) {
+                const req = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen || container.msRequestFullscreen;
+                if (req) {
+                    const promise = container.requestFullscreen ? container.requestFullscreen() : 
+                                   container.webkitRequestFullscreen ? container.webkitRequestFullscreen() :
+                                   container.mozRequestFullScreen ? container.mozRequestFullScreen() :
+                                   container.msRequestFullscreen();
+                    
+                    if (promise && promise.then) {
+                        promise.then(() => {
+                            if (isLandscapeVideo && screen.orientation && screen.orientation.lock) {
+                                screen.orientation.lock('landscape').catch(err => {});
+                            }
+                        }).catch(err => {});
+                    }
+                }
+                icon.className = 'fa-solid fa-compress';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                icon.className = 'fa-solid fa-expand';
+            }
+        };
+
+        // Sync icon state on escape key or system exit
+        document.addEventListener('fullscreenchange', () => {
+            const icons = document.querySelectorAll('.control-btn i.fa-expand, .control-btn i.fa-compress');
+            icons.forEach(icon => {
+                if (document.fullscreenElement) {
+                    icon.className = 'fa-solid fa-compress';
+                } else {
+                    icon.className = 'fa-solid fa-expand';
+                }
+            });
+        });
+
+        function unmuteAllOnInteraction() {
+            if (!isGlobalMuted) return; // Already unmuted
+            
+            isGlobalMuted = false;
+            console.log('Global Unmute Triggered');
+
+            // Unmute all HTML5 videos
+            document.querySelectorAll('video').forEach(v => {
+                v.muted = false;
+            });
+
+            // Unmute YouTube players
+            Object.values(ytPlayers).forEach(p => {
+                if (p && p.unMute) p.unMute();
+            });
+
+            // Update UI
+            document.querySelectorAll('.mute-toggle i').forEach(i => {
+                i.className = 'fa-solid fa-volume-high';
+            });
+        }
+
+        // Global listeners for first interaction to enable sound
+        document.addEventListener('click', unmuteAllOnInteraction, { once: true });
+        document.addEventListener('touchstart', unmuteAllOnInteraction, { once: true });
+        document.addEventListener('keydown', unmuteAllOnInteraction, { once: true });
+
+        window.openDetails = async (id) => {
+            const series = await getSeries();
+            const s = series.find(s => s.id == id);
+            if (!s) return;
+            const poster = s.poster_url || s.poster;
+            document.getElementById('modal-content').innerHTML = `<img src="${poster}" style="width:100%; height:250px; object-fit:cover;"><div style="padding:25px;"><h2 style="color:white;">${s.title}</h2><p style="color:#ccc;">${s.description || ''}</p><a href="series.html?id=${s.id}" class="btn btn-accent" style="width:100%; justify-content:center;">شاهد المسلسل</a></div>`;
+            document.getElementById('details-modal').classList.add('active');
+        };
+        window.closeDetails = () => document.getElementById('details-modal').classList.remove('active');
+
+        window.shareContent = async (id) => {
+            const series = await getSeries();
+            const s = series.find(s => s.id == id);
+            if (!s) return;
+            const url = window.location.origin + '/series.html?id=' + id;
+            document.getElementById('share-wa').href = `https://wa.me/?text=شاهد ${s.title} ${url}`;
+            document.getElementById('share-fb').href = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+            document.getElementById('share-tw').href = `https://twitter.com/intent/tweet?url=${url}`;
+            window.currentShareUrl = url;
+            document.getElementById('share-modal').classList.add('active');
+        };
+        window.closeShare = () => document.getElementById('share-modal').classList.remove('active');
+        window.copyReelLink = async () => { await navigator.clipboard.writeText(window.currentShareUrl); alert('تم النسخ!'); closeShare(); };
+
+        function triggerAdOverlay() {
+            const overlay = document.getElementById('ad-overlay'); const wrapper = document.querySelector('.reels-wrapper');
+            overlay.classList.add('active'); wrapper.classList.add('locked');
+            let timeLeft = 5;
+            const adInterval = setInterval(() => {
+                timeLeft--; document.getElementById('ad-timer').innerText = timeLeft;
+                if (timeLeft <= 0) { clearInterval(adInterval); overlay.classList.remove('active'); wrapper.classList.remove('locked'); }
+            }, 1000);
+        }
+
+        ['click', 'touchstart', 'wheel', 'keydown'].forEach(evt => {
+            document.addEventListener(evt, unmuteAllOnInteraction, { once: true });
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderReels();
+
+            // Reward tracking interval
+            setInterval(() => {
+                if (!currentActiveReel) return;
+                const video = currentActiveReel.querySelector('video');
+                const reelIdx = currentActiveReel.id.split('-')[1];
+                const ytPlayer = ytPlayers[reelIdx];
+
+                let isWatching = false;
+
+                if (ytPlayer && ytPlayer.getPlayerState) {
+                    isWatching = (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING);
+                } else if (video) {
+                    isWatching = !video.paused && video.readyState >= 2;
+                }
+
+                if (isWatching) {
+                    activeWatchSeconds++;
+                    const currentCycle = activeWatchSeconds % 40;
+                    const pctProgress = (currentCycle / 40) * 100;
+
+                    // Update all progress bars (to keep them in sync)
+                    document.querySelectorAll('.watch-reward-progress').forEach(el => {
+                        el.style.background = `conic-gradient(var(--accent) ${pctProgress}%, transparent 0%)`;
+                    });
+
+                    const earned = Math.floor(activeWatchSeconds / 40);
+                    if (earned > claimablePoints) {
+                        claimablePoints = earned;
+                        document.querySelectorAll('.player-claim-btn').forEach(btn => {
+                            btn.style.display = 'flex';
+                        });
+                        document.querySelectorAll('.player-claim-count').forEach(span => {
+                            span.innerText = claimablePoints;
+                        });
+                    }
+                }
+            }, 1000);
+        });
+
+        window.claimWatchPoints = (e) => {
+            e.stopPropagation();
+            if (claimablePoints > 0) {
+                addPoints(claimablePoints);
+                showToast(`🎉 حصلت على ${claimablePoints} نقطة لمشاهدتك!`);
+
+                activeWatchSeconds = activeWatchSeconds % 40;
+                claimablePoints = 0;
+
+                document.querySelectorAll('.player-claim-btn').forEach(btn => {
+                    btn.style.display = 'none';
+                });
+
+                const pctProgress = (activeWatchSeconds / 40) * 100;
+                document.querySelectorAll('.watch-reward-progress').forEach(el => {
+                    el.style.background = `conic-gradient(var(--accent) ${pctProgress}%, transparent 0%)`;
+                });
+            }
+        };
+
+        function showToast(msg) {
+            // Check if toast exists, otherwise use alert or create one
+            const toast = document.createElement('div');
+            toast.className = 'toast active';
+            toast.style.cssText = 'position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:white; color:black; padding:12px 24px; border-radius:50px; font-weight:700; z-index:10000; box-shadow:0 10px 30px rgba(0,0,0,0.3);';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#22c55e; margin-left:8px;"></i> ${msg}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+            window.addEventListener('resize', () => {
+            currentActiveReel = null;
+            setupReelObserver();
+        });
+
+        // --- Logout Logic ---
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="logout-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 99999; display: none; align-items: center; justify-content: center; padding: 20px;">
+                <div style="background: #161618; width: 100%; max-width: 380px; border-radius: 25px; padding: 35px; border: 1px solid rgba(255,255,255,0.08); text-align: center;">
+                    <div style="width: 70px; height: 70px; background: rgba(239, 68, 68, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #ef4444; font-size: 30px;">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </div>
+                    <h3 style="font-size: 22px; margin-bottom: 10px;">تسجيل الخروج</h3>
+                    <p style="color: var(--text-muted); font-size: 15px; margin-bottom: 30px; line-height: 1.6;">هل أنت متأكد أنك تريد تسجيل الخروج من حسابك؟</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <button onclick="logout()" class="btn btn-accent" style="background: #ef4444; border-color: #ef4444; justify-content: center;">نعم، خروج</button>
+                        <button onclick="closeLogoutModal()" class="btn btn-outline" style="justify-content: center;">إلغاء</button>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        function openLogoutModal() { document.getElementById('logout-modal').style.display = 'flex'; }
+        function closeLogoutModal() { document.getElementById('logout-modal').style.display = 'none'; }
+    </script>
+</body>
+
+</html>
