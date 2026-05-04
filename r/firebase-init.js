@@ -1,4 +1,4 @@
-// Firebase Initialization & Messaging Logic
+// firebase-init.js v3 — Fixed for GitHub Pages subfolder hosting
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
 
@@ -12,52 +12,51 @@ const firebaseConfig = {
     measurementId: "G-84YWY5CNCB"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
 
-// Function to request permission and get token
+function getSwUrl() {
+    const base = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+    return base + 'firebase-messaging-sw.js';
+}
+
 async function setupNotifications() {
     try {
+        if (!('serviceWorker' in navigator)) return;
         const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-            const token = await getToken(messaging, { 
-                vapidKey: 'BKrBLE_lmrlP8LUherpW4NdDxFIaj_fEdRC8RXBme4o8p6T7nyLDJ9UeoUCtZdmlsHz1UR97XnJ7KPzL7QTCj48'
-            });
-            
-            if (token) {
-                console.log('FCM Token:', token);
-                saveTokenToDatabase(token);
+        if (permission !== 'granted') return;
+        const swUrl = getSwUrl();
+        console.log('[FCM v3] Registering SW at:', swUrl);
+        const existingRegs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of existingRegs) {
+            if (reg.scope.includes('firebase-cloud-messaging-push-scope')) {
+                await reg.unregister();
             }
         }
-    } catch (error) {
-        console.error('Notification Setup Error:', error);
-    }
+        const registration = await navigator.serviceWorker.register(swUrl, { scope: './' });
+        const activeReg = await navigator.serviceWorker.ready;
+        console.log('[FCM v3] SW active:', activeReg.scope);
+        const token = await getToken(messaging, {
+            vapidKey: 'BKrBLE_lmrlP8LUherpW4NdDxFIaj_fEdRC8RXBme4o8p6T7nyLDJ9UeoUCtZdmlsHz1UR97XnJ7KPzL7QTCj48',
+            serviceWorkerRegistration: activeReg
+        });
+        if (token) { console.log('[FCM v3] Token OK ✅'); saveTokenToDatabase(token); }
+    } catch (err) { console.error('[FCM v3] Error:', err.message || err); }
 }
 
 async function saveTokenToDatabase(token) {
-    // Save to Supabase if user is logged in
-    if (typeof getCurrentUser === 'function') {
+    if (typeof getCurrentUser === 'function' && typeof updateProfile === 'function') {
         const user = getCurrentUser();
-        if (user && typeof updateProfile === 'function') {
-            await updateProfile({ fcm_token: token });
-            console.log('Token saved to profile');
-        }
+        if (user) { await updateProfile({ fcm_token: token }); }
     }
 }
 
-// Handle messages when app is in foreground
 onMessage(messaging, (payload) => {
-    console.log('Message received. ', payload);
-    if (typeof showToast === 'function') {
-        showToast(`${payload.notification.title}: ${payload.notification.body}`);
-    }
+    const title = payload.notification?.title || 'ReelArab';
+    const body  = payload.notification?.body  || '';
+    if (typeof showToast === 'function') showToast(`${title}: ${body}`);
 });
 
-// Trigger setup on load
 window.addEventListener('load', () => {
-    // Check if browser supports notifications
-    if ('Notification' in window) {
-        setupNotifications();
-    }
+    if ('Notification' in window) setTimeout(setupNotifications, 1500);
 });
