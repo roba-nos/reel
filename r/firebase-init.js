@@ -153,44 +153,61 @@ onMessage(messaging, async (payload) => {
 
 // --- Cordova Native Push Notifications ---
 document.addEventListener("deviceready", function() {
+    console.log('[FCM Native] Device is ready.');
+    
     if (window.FirebasePlugin) {
-        console.log('[FCM Native] Cordova FirebasePlugin is ready.');
-
-        // 1. Grant permission (iOS) and Get Token
+        // Request notification permissions
         window.FirebasePlugin.grantPermission(function(hasPermission){
             if (hasPermission) {
+                console.log('[FCM Native] Permission granted.');
+                
+                // Get the mobile-specific token
                 window.FirebasePlugin.getToken(function(token) {
-                    console.log("[FCM Native] Token:", token);
-                    saveTokenToDatabase(token);
+                    console.log('[FCM Native] Token received:', token);
+                    if (token) {
+                        saveTokenToDatabase(token);
+                    }
+                }, function(error) {
+                    console.error('[FCM Native] Error getting token:', error);
                 });
+            } else {
+                console.warn('[FCM Native] Permission denied by user.');
             }
         });
 
-        // 2. Token refresh handler
-        window.FirebasePlugin.onTokenRefresh(function(token) {
-            console.log("[FCM Native] Token Refreshed:", token);
-            saveTokenToDatabase(token);
-        });
-
-        // 3. Message receiver (Background click or Foreground)
+        // Handle incoming notifications (background tap or foreground reception)
         window.FirebasePlugin.onMessageReceived(function(message) {
-            console.log("[FCM Native] Message received:", message);
+            console.log('[FCM Native] Message received:', message);
             
-            // If the user tapped the notification while the app was in the background
             if (message.tap) {
-                const targetUrl = message.url || (message.data && message.data.url);
-                if (targetUrl) {
-                    window.location.href = targetUrl;
-                }
+                // User tapped the notification in the system tray
+                const url = message.url || (message.data && message.data.url);
+                if (url) window.location.href = url;
             } else {
-                // Received while app is open (Foreground)
+                // Message received while the app is active (foreground)
                 const title = message.title || message.notification?.title || 'ReelArab';
                 const body = message.body || message.notification?.body || '';
-                if (typeof showToast === 'function') {
-                    showToast(`${title}: ${body}`);
+                
+                if (typeof window.showToast === 'function') {
+                    window.showToast(`${title}: ${body}`);
                 }
             }
+        }, function(error) {
+            console.error('[FCM Native] Error receiving message:', error);
         });
+
+        // Listen for token refresh events
+        window.FirebasePlugin.onTokenRefresh(function(token) {
+            console.log('[FCM Native] Token refreshed:', token);
+            if (token) {
+                saveTokenToDatabase(token);
+            }
+        }, function(error) {
+            console.error('[FCM Native] Error on token refresh:', error);
+        });
+
+    } else {
+        console.error('[FCM Native] FirebasePlugin NOT FOUND! This code is running in a browser or the plugin is missing.');
     }
 }, false);
 
@@ -199,5 +216,11 @@ window.addEventListener('load', () => {
     // Only run web setup if NOT running inside Cordova
     if (!window.cordova && 'Notification' in window) {
         setTimeout(setupNotifications, 1500);
+    }
+    
+    // Also try to push pending token if user just logged in
+    const pending = localStorage.getItem('pending_fcm_token');
+    if (pending && typeof window.getCurrentUser === 'function' && window.getCurrentUser()) {
+        saveTokenToDatabase(pending);
     }
 });
