@@ -41,10 +41,15 @@ self.addEventListener('notificationclick', (event) => {
     const url = event.notification.data?.url || self.registration.scope;
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-            // If a window is already open, focus it
+            // If a window is already open, focus it and navigate to the URL
             for (const client of windowClients) {
                 if (client.url.includes(self.registration.scope) && 'focus' in client) {
-                    return client.focus();
+                    client.focus();
+                    // Navigate the open window to the new URL
+                    if ('navigate' in client && client.url !== url) {
+                        return client.navigate(url);
+                    }
+                    return;
                 }
             }
             // Otherwise open a new window
