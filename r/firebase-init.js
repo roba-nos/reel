@@ -1,4 +1,4 @@
-// firebase-init.js v3 — Fixed for GitHub Pages subfolder hosting
+// firebase-init.js v3.2 — Final Complete & Robust Version
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
 
@@ -15,8 +15,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
 
-// Get SW URL relative to the current page — works on any GitHub Pages subfolder
-// e.g. page at /reel/index.html → SW at /reel/firebase-messaging-sw.js ✅
+// Helper to get correct SW URL for GitHub Pages subfolders
 function getSwUrl() {
     let base = window.location.href;
     if (!base.endsWith('/')) {
@@ -37,45 +36,31 @@ async function setupNotifications() {
         if (permission !== 'granted') return;
 
         const swUrl = getSwUrl();
-        console.log('[FCM v3] Registering SW at:', swUrl);
+        console.log('[FCM Web] Registering SW at:', swUrl);
 
-        // Step 1: Unregister any stale SWs that might be pointing to wrong paths.
-        // This prevents old /firebase-cloud-messaging-push-scope SWs from interfering.
+        // Clean up stale registrations
         const existingRegs = await navigator.serviceWorker.getRegistrations();
         for (const reg of existingRegs) {
-            // Only unregister Firebase-default SWs (wrong root scope), not ours
             if (reg.scope.includes('firebase-cloud-messaging-push-scope')) {
-                console.log('[FCM v3] Unregistering stale Firebase SW:', reg.scope);
                 await reg.unregister();
             }
         }
 
-        // Step 2: Register OUR SW at the correct path
-        const registration = await navigator.serviceWorker.register(swUrl, {
-            scope: './'
-        });
-        console.log('[FCM v3] SW registered. Scope:', registration.scope);
-
-        // Step 3: Wait until our SW is fully ACTIVE.
-        // navigator.serviceWorker.ready resolves with an active ServiceWorkerRegistration.
-        // Firebase's getToken() checks if the passed registration is active —
-        // if it is, it uses it directly and SKIPS its broken registerDefaultSw().
+        // Register our specific SW
+        await navigator.serviceWorker.register(swUrl, { scope: './' });
         const activeReg = await navigator.serviceWorker.ready;
-        console.log('[FCM v3] SW is active. Scope:', activeReg.scope);
-
-        // Step 4: Get FCM token using OUR active SW (bypasses Firebase's default path)
+        
         const token = await getToken(messaging, {
             vapidKey: 'BKrBLE_lmrlP8LUherpW4NdDxFIaj_fEdRC8RXBme4o8p6T7nyLDJ9UeoUCtZdmlsHz1UR97XnJ7KPzL7QTCj48',
             serviceWorkerRegistration: activeReg
         });
 
         if (token) {
-            console.log('[FCM v3] Token OK ✅');
+            console.log('[FCM Web] Token OK ✅');
             saveTokenToDatabase(token);
         }
-
     } catch (err) {
-        console.error('[FCM v3] Error:', err.message || err);
+        console.error('[FCM Web] Error:', err);
     }
 }
 
@@ -88,139 +73,78 @@ async function saveTokenToDatabase(token) {
         if (user && typeof window.updateProfile === 'function') {
             await window.updateProfile({ fcm_token: token });
             localStorage.removeItem('pending_fcm_token');
-            console.log('[FCM Debug] Token saved to user profile.');
+            console.log('[FCM Debug] Token saved to profile.');
         } else {
-            // Save it locally so we can push it after the user logs in
             localStorage.setItem('pending_fcm_token', token);
-            console.log('[FCM Debug] User not logged in, token saved to pending list.');
         }
     }
 
-    // 2. ALWAYS save to universal 'guest_tokens' table for guests and everyone else
+    // 2. ALWAYS save to guest_tokens table
     try {
         if (typeof window.initSupabase === 'function') {
             const client = await window.initSupabase();
             if (client) {
-                // Upsert will insert if not exists, or do nothing if it does exist
-                const { error } = await client.from('guest_tokens').upsert([{ token: token }], { onConflict: 'token' });
-                if (error) {
-                    console.error('[FCM Debug] Supabase Upsert Error:', error);
-                } else {
-                    console.log('[FCM Debug] Token successfully saved to guest_tokens table!');
-                }
+                const { error } = await client.from('guest_tokens').upsert([{ token: token }]);
+                if (error) console.error('[FCM Debug] DB Error:', error);
+                else console.log('[FCM Debug] Successfully saved to guest_tokens!');
             }
         }
     } catch (err) {
-        console.error('[FCM Debug] Critical error saving guest token:', err);
+        console.error('[FCM Debug] Critical DB error:', err);
     }
 }
-
-// Ensure pending tokens are saved when a user returns or logs in
-window.addEventListener('load', () => {
-    if (typeof window.getCurrentUser === 'function') {
-        const user = window.getCurrentUser();
-        const pendingToken = localStorage.getItem('pending_fcm_token');
-        if (user && pendingToken && typeof window.updateProfile === 'function') {
-            window.updateProfile({ fcm_token: pendingToken }).then(() => {
-                localStorage.removeItem('pending_fcm_token');
-                console.log('[FCM Debug] Pending token saved to profile on load.');
-            });
-        }
-    }
-});
-
-// Foreground notifications
-onMessage(messaging, async (payload) => {
-    const title = payload.notification?.title || 'ReelArab';
-    const body  = payload.notification?.body  || '';
-    const image = payload.notification?.image || payload.data?.image || undefined;
-    
-    // 1. Show in-app toast
-    if (typeof window.showToast === 'function') window.showToast(`${title}: ${body}`);
-    
-    // 2. Also show native system notification (even if app is open)
-    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-        const reg = await navigator.serviceWorker.ready;
-        reg.showNotification(title, {
-            body: body,
-            icon: 'favicon.png',
-            badge: 'favicon.png',
-            image: image,
-            data: payload.data || {}
-        });
-    }
-});
 
 // --- Cordova Native Push Notifications ---
 document.addEventListener("deviceready", function() {
     console.log('[FCM Native] Device is ready.');
     
     if (window.FirebasePlugin) {
-        // Request notification permissions
+        alert("إضافة Firebase موجودة وتعمل!");
+        
         window.FirebasePlugin.grantPermission(function(hasPermission){
             if (hasPermission) {
                 console.log('[FCM Native] Permission granted.');
-                
-                // Get the mobile-specific token
                 window.FirebasePlugin.getToken(function(token) {
                     console.log('[FCM Native] Token received:', token);
-                    if (token) {
-                        saveTokenToDatabase(token);
-                    }
+                    if (token) saveTokenToDatabase(token);
                 }, function(error) {
-                    console.error('[FCM Native] Error getting token:', error);
+                    console.error('[FCM Native] Token error:', error);
                 });
             } else {
-                console.warn('[FCM Native] Permission denied by user.');
+                alert("يرجى تفعيل صلاحية الإشعارات لكي يصلك كل جديد!");
             }
         });
 
-        // Handle incoming notifications (background tap or foreground reception)
         window.FirebasePlugin.onMessageReceived(function(message) {
-            console.log('[FCM Native] Message received:', message);
-            
             if (message.tap) {
-                // User tapped the notification in the system tray
                 const url = message.url || (message.data && message.data.url);
                 if (url) window.location.href = url;
             } else {
-                // Message received while the app is active (foreground)
                 const title = message.title || message.notification?.title || 'ReelArab';
                 const body = message.body || message.notification?.body || '';
-                
-                if (typeof window.showToast === 'function') {
-                    window.showToast(`${title}: ${body}`);
-                }
+                if (typeof window.showToast === 'function') window.showToast(`${title}: ${body}`);
             }
-        }, function(error) {
-            console.error('[FCM Native] Error receiving message:', error);
         });
 
-        // Listen for token refresh events
         window.FirebasePlugin.onTokenRefresh(function(token) {
-            console.log('[FCM Native] Token refreshed:', token);
-            if (token) {
-                saveTokenToDatabase(token);
-            }
-        }, function(error) {
-            console.error('[FCM Native] Error on token refresh:', error);
+            if (token) saveTokenToDatabase(token);
         });
-
     } else {
-        console.error('[FCM Native] FirebasePlugin NOT FOUND! This code is running in a browser or the plugin is missing.');
+        alert("خطأ: إضافة Firebase غير موجودة في هذا التطبيق!");
     }
 }, false);
 
 // --- Web Push Notifications ---
 window.addEventListener('load', () => {
-    // Only run web setup if NOT running inside Cordova
     if (!window.cordova && 'Notification' in window) {
         setTimeout(setupNotifications, 1500);
     }
-    
-    // Also try to push pending token if user just logged in
     const pending = localStorage.getItem('pending_fcm_token');
     if (pending && typeof window.getCurrentUser === 'function' && window.getCurrentUser()) {
         saveTokenToDatabase(pending);
     }
+});
+
+onMessage(messaging, (payload) => {
+    if (typeof window.showToast === 'function') window.showToast(`${payload.notification.title}: ${payload.notification.body}`);
 });
