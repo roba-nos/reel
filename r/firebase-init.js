@@ -80,42 +80,50 @@ async function setupNotifications() {
 }
 
 async function saveTokenToDatabase(token) {
+    console.log('[FCM Debug] Attempting to save token...');
+    
     // 1. Save to profile if logged in
-    if (typeof getCurrentUser === 'function') {
-        const user = getCurrentUser();
-        if (user && typeof updateProfile === 'function') {
-            await updateProfile({ fcm_token: token });
+    if (typeof window.getCurrentUser === 'function') {
+        const user = window.getCurrentUser();
+        if (user && typeof window.updateProfile === 'function') {
+            await window.updateProfile({ fcm_token: token });
             localStorage.removeItem('pending_fcm_token');
-            console.log('[FCM v3] Token saved to profile.');
+            console.log('[FCM Debug] Token saved to user profile.');
         } else {
+            // Save it locally so we can push it after the user logs in
             localStorage.setItem('pending_fcm_token', token);
+            console.log('[FCM Debug] User not logged in, token saved to pending list.');
         }
     }
 
     // 2. ALWAYS save to universal 'guest_tokens' table for guests and everyone else
     try {
-        if (typeof initSupabase === 'function') {
-            const client = await initSupabase();
+        if (typeof window.initSupabase === 'function') {
+            const client = await window.initSupabase();
             if (client) {
                 // Upsert will insert if not exists, or do nothing if it does exist
-                await client.from('guest_tokens').upsert([{ token: token }], { onConflict: 'token' });
-                console.log('[FCM v3] Token saved to guest_tokens.');
+                const { error } = await client.from('guest_tokens').upsert([{ token: token }], { onConflict: 'token' });
+                if (error) {
+                    console.error('[FCM Debug] Supabase Upsert Error:', error);
+                } else {
+                    console.log('[FCM Debug] Token successfully saved to guest_tokens table!');
+                }
             }
         }
     } catch (err) {
-        console.error('Failed to save guest token:', err);
+        console.error('[FCM Debug] Critical error saving guest token:', err);
     }
 }
 
 // Ensure pending tokens are saved when a user returns or logs in
 window.addEventListener('load', () => {
-    if (typeof getCurrentUser === 'function') {
-        const user = getCurrentUser();
+    if (typeof window.getCurrentUser === 'function') {
+        const user = window.getCurrentUser();
         const pendingToken = localStorage.getItem('pending_fcm_token');
-        if (user && pendingToken && typeof updateProfile === 'function') {
-            updateProfile({ fcm_token: pendingToken }).then(() => {
+        if (user && pendingToken && typeof window.updateProfile === 'function') {
+            window.updateProfile({ fcm_token: pendingToken }).then(() => {
                 localStorage.removeItem('pending_fcm_token');
-                console.log('[FCM v3] Pending token saved to profile on load.');
+                console.log('[FCM Debug] Pending token saved to profile on load.');
             });
         }
     }
@@ -128,7 +136,7 @@ onMessage(messaging, async (payload) => {
     const image = payload.notification?.image || payload.data?.image || undefined;
     
     // 1. Show in-app toast
-    if (typeof showToast === 'function') showToast(`${title}: ${body}`);
+    if (typeof window.showToast === 'function') window.showToast(`${title}: ${body}`);
     
     // 2. Also show native system notification (even if app is open)
     if ('serviceWorker' in navigator && Notification.permission === 'granted') {
