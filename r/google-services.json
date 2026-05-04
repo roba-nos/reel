@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "268246686856",
+    "project_id": "reelarab-7f96c",
+    "storage_bucket": "reelarab-7f96c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:268246686856:android:2765c3ec31b2ef5f55933d",
+        "android_client_info": {
+          "package_name": "com.reelarab.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBI498tpaZHDa6dmwACAV0gHrbBU-NEwmI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
